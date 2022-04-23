@@ -30,7 +30,7 @@ There is an option to disable the ribbon button being added in the plugin settin
 
 This plugin is provided to everyone for free, however if you would like to say thanks or help support continued development, consider getting me a coffee. It keeps my work going.
 
-<a href="https://www.buymeacoffee.com/roniemartinez" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+<a href="https://www.buymeacoffee.com/dalca7" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
 
 ## Notes
 
