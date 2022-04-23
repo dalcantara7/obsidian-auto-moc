@@ -8,27 +8,29 @@ import {
 	Setting,
 } from "obsidian";
 
-// interface AutoMOCSettings {
-// 	mySetting: string;
-// }
+interface AutoMOCSettings {
+	showRibbonButton: boolean;
+}
 
-// const DEFAULT_SETTINGS: AutoMOCSettings = {
-// 	mySetting: "Uncategorized",
-// };
+const DEFAULT_SETTINGS: AutoMOCSettings = {
+	showRibbonButton: true,
+};
 
 export default class AutoMOC extends Plugin {
-	// settings: AutoMOCSettings;
+	settings: AutoMOCSettings;
 
 	async onload() {
-		// await this.loadSettings();
+		await this.loadSettings();
 
-		const ribbonIconEl = this.addRibbonIcon(
-			"sheets-in-box",
-			"AutoMOC",
-			(evt: MouseEvent) => {
-				runAutoMOC();
-			}
-		);
+		if (this.settings.showRibbonButton) {
+			const ribbonIconEl = this.addRibbonIcon(
+				"sheets-in-box",
+				"AutoMOC",
+				(evt: MouseEvent) => {
+					runAutoMOC();
+				}
+			);
+		}
 
 		this.addCommand({
 			id: "add-missing-linked-mentions",
@@ -51,7 +53,7 @@ export default class AutoMOC extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		// this.addSettingTab(new AutoMOCSettingTab(this.app, this));
+		this.addSettingTab(new AutoMOCSettingTab(this.app, this));
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// Using this function will automatically remove the event listener when this plugin is disabled.
@@ -67,17 +69,17 @@ export default class AutoMOC extends Plugin {
 
 	onunload() {}
 
-	// async loadSettings() {
-	// 	this.settings = Object.assign(
-	// 		{},
-	// 		DEFAULT_SETTINGS,
-	// 		await this.loadData()
-	// 	);
-	// }
+	async loadSettings() {
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			await this.loadData()
+		);
+	}
 
-	// async saveSettings() {
-	// 	await this.saveData(this.settings);
-	// }
+	async saveSettings() {
+		await this.saveData(this.settings);
+	}
 }
 
 function getPresentLinks() {
@@ -139,34 +141,33 @@ function runAutoMOC() {
 	addMissingLinks(presentLinks, linkedMentions);
 }
 
-// class AutoMOCSettingTab extends PluginSettingTab {
-// 	plugin: AutoMOC;
+class AutoMOCSettingTab extends PluginSettingTab {
+	plugin: AutoMOC;
 
-// 	constructor(app: App, plugin: AutoMOC) {
-// 		super(app, plugin);
-// 		this.plugin = plugin;
-// 	}
+	constructor(app: App, plugin: AutoMOC) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
 
-// 	display(): void {
-// 		const { containerEl } = this;
+	display(): void {
+		const { containerEl } = this;
 
-// 		containerEl.empty();
+		containerEl.empty();
 
-// 		new Setting(containerEl)
-// 			.setName("Link Location")
-// 			.setDesc(
-// 				"The keyword under which your unlinked mentions will be added"
-// 			)
-// 			.addText((text) =>
-// 				text
-// 					.setPlaceholder("Uncategorized")
-// 					// .setValue(this.plugin.settings.mySetting)
-// 					.onChange(async (value) => {
-// 						if (!value) value = "Uncategorized"; //revert to default if no value set
-// 						this.plugin.settings.mySetting = value;
-// 						await this.plugin.saveSettings();
-// 						console.log("Link keyword: " + value);
-// 					})
-// 			);
-// 	}
-// }
+		new Setting(containerEl)
+			.setName("Show ribbon button")
+			.setDesc(
+				"Enable or disable the ribbon button for this plugin. You can still run the plugin with a hotkey (requires restart)"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.showRibbonButton)
+					.onChange((showRibbonButton) => {
+						this.plugin.settings.showRibbonButton =
+							showRibbonButton;
+						this.plugin.saveSettings();
+						console.log(this.plugin.settings.showRibbonButton);
+					});
+			});
+	}
+}
