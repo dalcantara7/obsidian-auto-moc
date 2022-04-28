@@ -18,7 +18,7 @@ There is an option to disable the ribbon button in the plugin settings. The plug
 
 ## Known issues
 
-As of now, previous known issues have been resolved. It is possible there are still bugs. If you come across one, please do report it under the issues tab in GitHub.
+As of now, all known issues have been resolved. It is possible there are still bugs. If you come across one, please do report it under the issues tab in GitHub.
 
 ## Pricing
 

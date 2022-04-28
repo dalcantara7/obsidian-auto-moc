@@ -28,7 +28,7 @@ export default class AutoMOC extends Plugin {
 
 	getLinkedMentions(currFilePath: string) {
 		const files = this.app.metadataCache.resolvedLinks;
-		let linkedMentions: Array<String> = [];
+		let linkedMentions: Array<string> = [];
 		Object.keys(files).forEach((key) => {
 			if (currFilePath in files[key]) {
 				linkedMentions.push(key);
@@ -39,23 +39,22 @@ export default class AutoMOC extends Plugin {
 	}
 
 	addMissingLinks(
-		presentLinks: Array<String>,
-		allLinkedMentions: Array<String>
+		activeFilePath: string,
+		presentLinks: Array<string>,
+		allLinkedMentions: Array<string>
 	) {
 		//checks for missing links and adds them
 		let addFlag = false;
 
 		for (const path of allLinkedMentions) {
 			if (!presentLinks.includes(path)) {
-				const files = this.app.vault.getMarkdownFiles();
-				let found = files.find((f) => f.path === path);
-				let foundPath = found.path;
+				let found = this.app.vault.getAbstractFileByPath(path);
 
 				let view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				view.editor.replaceSelection(
 					this.app.fileManager.generateMarkdownLink(
 						found,
-						foundPath
+						activeFilePath
 					) + "\n"
 				);
 				addFlag = true;
@@ -74,7 +73,7 @@ export default class AutoMOC extends Plugin {
 			const presentLinks = this.getPresentLinks(activeFilePath); // links already in the document
 			const linkedMentions = this.getLinkedMentions(activeFilePath); // all linked mentions even those not present
 
-			this.addMissingLinks(presentLinks, linkedMentions);
+			this.addMissingLinks(activeFilePath, presentLinks, linkedMentions);
 		} else {
 			new Notice(
 				"Failed to link mentions, file type is not a markdown file"
