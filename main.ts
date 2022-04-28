@@ -6,6 +6,7 @@ import {
 	Plugin,
 	PluginSettingTab,
 	Setting,
+	TFile,
 } from "obsidian";
 
 interface AutoMOCSettings {
@@ -50,14 +51,22 @@ export default class AutoMOC extends Plugin {
 			if (!presentLinks.includes(path)) {
 				let found = this.app.vault.getAbstractFileByPath(path);
 
-				let view = this.app.workspace.getActiveViewOfType(MarkdownView);
-				view.editor.replaceSelection(
-					this.app.fileManager.generateMarkdownLink(
-						found,
-						activeFilePath
-					) + "\n"
-				);
-				addFlag = true;
+				if (found instanceof TFile) {
+					let view =
+						this.app.workspace.getActiveViewOfType(MarkdownView);
+					view.editor.replaceSelection(
+						this.app.fileManager.generateMarkdownLink(
+							found,
+							activeFilePath
+						) + "\n"
+					);
+					addFlag = true;
+				} else {
+					new Notice(
+						"Failed to link mentions, file type is not a markdown file"
+					);
+					return;
+				}
 			}
 		}
 
