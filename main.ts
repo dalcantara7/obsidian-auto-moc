@@ -21,17 +21,17 @@ export default class AutoMOC extends Plugin {
 	settings: AutoMOCSettings;
 
 	getPresentLinks(currFilePath: string) {
-		const files = this.app.metadataCache.resolvedLinks;
-		const presentLinks = Object.keys(files[currFilePath]);
+		const allLinks = this.app.metadataCache.resolvedLinks;
+		const presentLinks = Object.keys(allLinks[currFilePath]);
 
 		return presentLinks;
 	}
 
 	getLinkedMentions(currFilePath: string) {
-		const files = this.app.metadataCache.resolvedLinks;
+		const allLinks = this.app.metadataCache.resolvedLinks;
 		let linkedMentions: Array<string> = [];
-		Object.keys(files).forEach((key) => {
-			if (currFilePath in files[key]) {
+		Object.keys(allLinks).forEach((key) => {
+			if (currFilePath in allLinks[key]) {
 				linkedMentions.push(key);
 			}
 		});
@@ -40,32 +40,26 @@ export default class AutoMOC extends Plugin {
 	}
 
 	addMissingLinks(
+		editor: Editor,
 		activeFilePath: string,
 		presentLinks: Array<string>,
 		allLinkedMentions: Array<string>
 	) {
-		//checks for missing links and adds them
 		let addFlag = false;
 
+		//checks for missing links and adds them
 		for (const path of allLinkedMentions) {
 			if (!presentLinks.includes(path)) {
 				let found = this.app.vault.getAbstractFileByPath(path);
 
 				if (found instanceof TFile) {
-					let view =
-						this.app.workspace.getActiveViewOfType(MarkdownView);
-					view.editor.replaceSelection(
+					editor.replaceSelection(
 						this.app.fileManager.generateMarkdownLink(
 							found,
 							activeFilePath
 						) + "\n"
 					);
 					addFlag = true;
-				} else {
-					new Notice(
-						"Failed to link mentions, file type is not a markdown file"
-					);
-					return;
 				}
 			}
 		}
@@ -75,14 +69,20 @@ export default class AutoMOC extends Plugin {
 
 	runAutoMOC() {
 		const activeFile = this.app.workspace.getActiveFile();
+		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
-		if (activeFile.extension === "md") {
+		if (view != null && activeFile.extension === "md") {
 			new Notice("Linking mentions");
 			const activeFilePath = this.app.workspace.getActiveFile().path;
 			const presentLinks = this.getPresentLinks(activeFilePath); // links already in the document
 			const linkedMentions = this.getLinkedMentions(activeFilePath); // all linked mentions even those not present
 
-			this.addMissingLinks(activeFilePath, presentLinks, linkedMentions);
+			this.addMissingLinks(
+				view.editor,
+				activeFilePath,
+				presentLinks,
+				linkedMentions
+			);
 		} else {
 			new Notice(
 				"Failed to link mentions, file type is not a markdown file"
