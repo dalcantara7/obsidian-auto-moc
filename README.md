@@ -18,7 +18,9 @@ There is an option to disable the ribbon button in the plugin settings. The plug
 
 ## Known issues
 
-As of now, all known issues have been resolved. It is possible there are still bugs. If you come across one, please do report it under the issues tab in GitHub.
+When creating a new link, it may take a while for Obsidian to resolve the link. In this time, the new link may not be visible to the plugin and it will report "No new links found". To avoid this wait a couple of seconds between creating a new link and running the AutoMOC plugin.
+
+It is possible there are other bugs. If you come across one, please do report it under the issues tab in GitHub.
 
 ## Pricing
 

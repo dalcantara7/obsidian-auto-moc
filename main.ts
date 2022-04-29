@@ -40,8 +40,7 @@ export default class AutoMOC extends Plugin {
 	}
 
 	addMissingLinks(
-		editor: Editor,
-		activeFilePath: string,
+		activeFileView: MarkdownView,
 		presentLinks: Array<string>,
 		allLinkedMentions: Array<string>
 	) {
@@ -53,10 +52,10 @@ export default class AutoMOC extends Plugin {
 				let found = this.app.vault.getAbstractFileByPath(path);
 
 				if (found instanceof TFile) {
-					editor.replaceSelection(
+					activeFileView.editor.replaceSelection(
 						this.app.fileManager.generateMarkdownLink(
 							found,
-							activeFilePath
+							activeFileView.file.path
 						) + "\n"
 					);
 					addFlag = true;
@@ -68,21 +67,14 @@ export default class AutoMOC extends Plugin {
 	}
 
 	runAutoMOC() {
-		const activeFile = this.app.workspace.getActiveFile();
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
-		if (view != null && activeFile.extension === "md") {
+		if (view != null && view.file.extension === "md") {
 			new Notice("Linking mentions");
-			const activeFilePath = this.app.workspace.getActiveFile().path;
-			const presentLinks = this.getPresentLinks(activeFilePath); // links already in the document
-			const linkedMentions = this.getLinkedMentions(activeFilePath); // all linked mentions even those not present
+			const presentLinks = this.getPresentLinks(view.file.path); // links already in the document
+			const linkedMentions = this.getLinkedMentions(view.file.path); // all linked mentions even those not present
 
-			this.addMissingLinks(
-				view.editor,
-				activeFilePath,
-				presentLinks,
-				linkedMentions
-			);
+			this.addMissingLinks(view, presentLinks, linkedMentions);
 		} else {
 			new Notice(
 				"Failed to link mentions, file type is not a markdown file"
