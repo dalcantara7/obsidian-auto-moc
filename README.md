@@ -1,24 +1,44 @@
 # AutoMOC for Obsidian
 
-This plugin automatically imports any linked mentions into the current note that are not already in the note at the current cursor location. <br><br>
-When taking notes, one may forget to provide the backlink to the MOC for which a new note was linked. Over time this leads to many purely directional links. MOCs may miss many notes they are linked to simply by the user forgetting. <br><br>
-This resolves that issue by checking for missing linked mentions and adding them to the current note at the current cursor location.
+This plugin is designed to make the maintenance of MOCs a simpler process. <br>
+
+When taking notes, one may forget to provide the backlink to the MOC for which a new note was linked. Over time this leads to many purely directional links. MOCs may miss many notes they are linked to simply by the user forgetting. A similar problem is found for those users who use tags to group notes and want to maintain a running list of those notes.<br>
+
+This plugin imports missing linked mentions or tagged mentions into the current note at the current cursor location. <br><br>
+
+TL;DR the plugin provides a quick way to link back to all linked mentions or tagged mentions for a given note.
 <br>
 
 ## Usage
 
-After enabling this plugin, place your cursor in an editable markdown note where you want the links to be added. <br>
-Run the plugin either through the command pallette, keyboard shortcut (must be mapped), or ribbon button.
+There are two commands that are currently supported: <br>
+
+1. Import notes based on linked mentions
+
+-   The plugin checks for linked mentions matching the current file's name
+
+2. Import notes based on tagged mentions
+
+-   The plugin checks for tags matching the current file's name
+
+After enabling this plugin, place your cursor in an editable markdown note where you want the links to be added.
+
 <br>
+Command 1 can be run through the command pallette, a keyboard shortcut (must be mapped), or the ribbon button. Missing linked mentions will be added into the current note at the current cursor position.
 
 ![demo](assets/auto-moc-demo.gif)
+
 <br>
+Command 2 can be through the command pallette, or a keyboard shortcut (must be mapped), but not through the ribbon button. It will open a modal which will prompt for a tag. Once you select the tag you want, all notes that have the tag will be imported into the current note at the current cursor position.
+
+![demo](assets/modal-demo.gif)
+
 <br>
-There is an option to disable the ribbon button in the plugin settings. The plugin can still be activated by using the command pallete or by using a mapped hotkey.
+Note: There is an option to disable the ribbon button in the plugin settings. The plugin can still be activated by using the command pallete or by using a mapped hotkey.
 
 ## Known issues
 
-When creating a new link, it may take a while for Obsidian to resolve the link. In this time, the new link may not be visible to the plugin and it will report "No new links found". To avoid this wait a couple of seconds between creating a new link and running the AutoMOC plugin.
+When creating a new link or tag, it may take a while for Obsidian to resolve the link/tag. In this time, the new link/tag may not be visible to the plugin and it will report "No new links found". To avoid this wait a couple of seconds between creating a new link/tag and running the AutoMOC plugin.
 
 It is possible there are other bugs. If you come across one, please do report it under the issues tab in GitHub.
 

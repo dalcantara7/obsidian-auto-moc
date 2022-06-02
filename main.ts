@@ -7,6 +7,7 @@ import {
 	PluginSettingTab,
 	Setting,
 	TFile,
+	FuzzySuggestModal,
 } from "obsidian";
 
 interface AutoMOCSettings {
@@ -17,26 +18,108 @@ const DEFAULT_SETTINGS: AutoMOCSettings = {
 	showRibbonButton: true,
 };
 
+export class TagSuggestModal extends FuzzySuggestModal<string> {
+	selection: string;
+	plugin: AutoMOC;
+
+	constructor(app: App, plugin: AutoMOC) {
+		super(app);
+		this.plugin = plugin;
+
+		this.modalEl.prepend(
+			this.modalEl.createEl("h2", {
+				text: "Import notes with tags matching",
+			})
+		);
+	}
+
+	onOpen(): void {
+		this.setPlaceholder("Type the name of a tag...");
+		this.setInstructions([
+			{ command: "↑↓", purpose: "to navigate" },
+			{ command: "↵", purpose: "to select tag" },
+			{ command: "esc", purpose: "to dismiss" },
+		]);
+
+		this.inputEl.focus();
+	}
+
+	onClose() {
+		let { contentEl } = this;
+		contentEl.empty();
+	}
+
+	getItems(): string[] {
+		const allFiles = this.app.metadataCache.resolvedLinks;
+		let tagsSet = new Set<string>();
+
+		Object.keys(allFiles).forEach((key) => {
+			let file = this.app.vault.getAbstractFileByPath(key);
+			if (file instanceof TFile) {
+				const tags = app.metadataCache.getFileCache(file).tags;
+				if (tags) {
+					for (const tag of tags) {
+						tagsSet.add(tag["tag"]);
+					}
+				}
+			}
+		});
+
+		return Array.from(tagsSet);
+	}
+
+	getItemText(item: string): string {
+		return item;
+	}
+
+	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
+		this.selection = item;
+		this.plugin.runAutoMOC(item);
+	}
+}
+
 export default class AutoMOC extends Plugin {
 	settings: AutoMOCSettings;
 
 	getPresentLinks(currFilePath: string) {
-		const allLinks = this.app.metadataCache.resolvedLinks;
-		const presentLinks = Object.keys(allLinks[currFilePath]);
+		const allFiles = this.app.metadataCache.resolvedLinks;
+		const presentLinks = Object.keys(allFiles[currFilePath]);
 
-		return presentLinks;
+		return presentLinks.sort();
 	}
 
 	getLinkedMentions(currFilePath: string) {
-		const allLinks = this.app.metadataCache.resolvedLinks;
+		const allFiles = this.app.metadataCache.resolvedLinks;
 		let linkedMentions: Array<string> = [];
-		Object.keys(allLinks).forEach((key) => {
-			if (currFilePath in allLinks[key]) {
+		Object.keys(allFiles).forEach((key) => {
+			if (currFilePath in allFiles[key]) {
 				linkedMentions.push(key);
 			}
 		});
 
-		return linkedMentions;
+		return linkedMentions.sort();
+	}
+
+	getTaggedMentions(currFileName: string) {
+		const allFiles = this.app.metadataCache.resolvedLinks;
+		let taggedMentions: Array<string> = [];
+		const toCompare = currFileName;
+
+		Object.keys(allFiles).forEach((key) => {
+			let file = this.app.vault.getAbstractFileByPath(key);
+			if (file instanceof TFile) {
+				const tags = app.metadataCache.getFileCache(file).tags;
+				if (tags) {
+					for (const tag of tags) {
+						if (tag["tag"] === toCompare) {
+							taggedMentions.push(file.path);
+						}
+					}
+				}
+			}
+		});
+
+		return taggedMentions;
 	}
 
 	addMissingLinks(
@@ -52,10 +135,17 @@ export default class AutoMOC extends Plugin {
 				let found = this.app.vault.getAbstractFileByPath(path);
 
 				if (found instanceof TFile) {
+					const fileAliases =
+						this.app.metadataCache.getFileCache(found).frontmatter;
+					let alias = "";
+
+					if (fileAliases) alias = "|" + fileAliases.aliases[0];
+
 					activeFileView.editor.replaceSelection(
 						this.app.fileManager.generateMarkdownLink(
 							found,
-							activeFileView.file.path
+							activeFileView.file.path,
+							(alias = alias)
 						) + "\n"
 					);
 					addFlag = true;
@@ -66,13 +156,19 @@ export default class AutoMOC extends Plugin {
 		if (!addFlag) new Notice("No new links found");
 	}
 
-	runAutoMOC() {
+	runAutoMOC(tag?: string) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
 		if (view != null && view.file.extension === "md") {
 			new Notice("Linking mentions");
 			const presentLinks = this.getPresentLinks(view.file.path); // links already in the document
-			const linkedMentions = this.getLinkedMentions(view.file.path); // all linked mentions even those not present
+
+			let linkedMentions: Array<string>;
+			if (!tag) {
+				linkedMentions = this.getLinkedMentions(view.file.path); // all linked mentions even those not present
+			} else {
+				linkedMentions = this.getTaggedMentions(tag); // tagged mentions are looked up by basename rather than path
+			}
 
 			this.addMissingLinks(view, presentLinks, linkedMentions);
 		} else {
@@ -97,9 +193,17 @@ export default class AutoMOC extends Plugin {
 
 		this.addCommand({
 			id: "add-missing-linked-mentions",
-			name: "Add missing linked mentions at cursor position",
+			name: "Add missing linked mentions at the cursor position",
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				this.runAutoMOC();
+			},
+		});
+
+		this.addCommand({
+			id: "add-missing-notes-by-tag",
+			name: "Add missing notes that are tagged as the current note at the cursor position",
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				new TagSuggestModal(this.app, this).open();
 			},
 		});
 
