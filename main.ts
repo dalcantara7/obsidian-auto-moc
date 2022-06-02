@@ -65,7 +65,7 @@ export class TagSuggestModal extends FuzzySuggestModal<string> {
 			}
 		});
 
-		return Array.from(tagsSet);
+		return Array.from(tagsSet).sort();
 	}
 
 	getItemText(item: string): string {
