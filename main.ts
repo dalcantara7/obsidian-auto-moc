@@ -201,7 +201,7 @@ export default class AutoMOC extends Plugin {
 
 		this.addCommand({
 			id: "add-missing-notes-by-tag",
-			name: "Add missing notes that are tagged as the current note at the cursor position",
+			name: "Add missing notes with specific tag at the current cursor location",
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				new TagSuggestModal(this.app, this).open();
 			},
