@@ -139,7 +139,10 @@ export default class AutoMOC extends Plugin {
 						this.app.metadataCache.getFileCache(found).frontmatter;
 					let alias = "";
 
-					if (fileAliases) alias = "|" + fileAliases.aliases[0];
+					console.log(fileAliases);
+
+					if (fileAliases["aliases"])
+						alias = "|" + fileAliases.aliases[0];
 
 					activeFileView.editor.replaceSelection(
 						this.app.fileManager.generateMarkdownLink(
