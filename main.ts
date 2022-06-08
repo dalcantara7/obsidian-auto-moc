@@ -135,14 +135,18 @@ export default class AutoMOC extends Plugin {
 				let found = this.app.vault.getAbstractFileByPath(path);
 
 				if (found instanceof TFile) {
+					//check for aliases
 					const fileAliases =
 						this.app.metadataCache.getFileCache(found).frontmatter;
 					let alias = "";
 
-					console.log(fileAliases);
-
-					if (fileAliases["aliases"])
+					if (
+						fileAliases &&
+						Array.isArray(fileAliases["aliases"]) &&
+						fileAliases["aliases"].length > 0
+					) {
 						alias = "|" + fileAliases.aliases[0];
+					}
 
 					activeFileView.editor.replaceSelection(
 						this.app.fileManager.generateMarkdownLink(

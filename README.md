@@ -28,13 +28,40 @@ Command 1 can be run through the command pallette, a keyboard shortcut (must be 
 
 ![demo](assets/auto-moc-demo.gif)
 
+Note: There is an option to disable the ribbon button in the plugin settings. The plugin can still be activated by using the command pallete or by using a mapped hotkey.
+
 <br>
 Command 2 can be through the command pallette, or a keyboard shortcut (must be mapped), but not through the ribbon button. It will open a modal which will prompt for a tag. Once you select the tag you want, all notes that have the tag will be imported into the current note at the current cursor position.
 
 ![demo](assets/modal-demo.gif)
 
 <br>
-Note: There is an option to disable the ribbon button in the plugin settings. The plugin can still be activated by using the command pallete or by using a mapped hotkey.
+
+The plugin will check to see if a note has aliases in its frontmatter. If it finds one, it will import the note with the alias so that the link will be
+
+```
+[[NOTE|ALIAS]]
+
+and will show up as
+
+ALIAS
+
+in Preview Mode
+```
+
+NOTE: you must use the proper YAML frontmatter structure shown below. Otherwise, the alias will not be recognized and the note will be imported without the alias
+
+```
+aliases: [Example, Example2]
+```
+
+or
+
+```
+aliases:
+- Example
+- Example2
+```
 
 ## Known issues
 
