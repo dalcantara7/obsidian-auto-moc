@@ -12,11 +12,71 @@ import {
 
 interface AutoMOCSettings {
 	showRibbonButton: boolean;
+	linkToHeading: boolean;
 }
 
 const DEFAULT_SETTINGS: AutoMOCSettings = {
 	showRibbonButton: true,
+	linkToHeading: false,
 };
+
+export class HeadingSuggestModel extends FuzzySuggestModal<string> {
+	selection: string;
+	plugin: AutoMOC;
+
+	constructor(app: App, plugin: AutoMOC) {
+		super(app);
+		this.plugin = plugin;
+
+		this.modalEl.prepend(
+			this.modalEl.createEl("h2", {
+				text: "Choose heading to append to link",
+			})
+		);
+	}
+
+	onOpen(): void {
+		let { contentEl } = this;
+
+		this.setPlaceholder(
+			"Type the heading level desired (i.e. h1, h2, h3, etc.)..."
+		);
+		this.setInstructions([
+			{ command: "↑↓", purpose: "to navigate" },
+			{ command: "↵", purpose: "to select tag" },
+			{ command: "esc", purpose: "to dismiss" },
+		]);
+
+		this.inputEl.focus();
+	}
+
+	onClose() {
+		let { contentEl } = this;
+		contentEl.empty();
+		return this.selection;
+	}
+
+	getItems(): string[] {
+		const testString = `\n# Clean-er ReactJS Code - Conditional Rendering\n\n## TL;DR\n\nMove render conditions into appropriately named variables. Abstract the condition logic into a function. This makes the render function code a lot easier to understand, refactor, reuse, test, and think about.\n\n## Introduction\n\nConditional rendering is when a logical operator determines what will be rendered. The following code is from the examples in the official ReactJS documentation. It is one of the simplest examples of conditional rendering that I can think of.\n\n`;
+
+		const regXHeader = /#{1,6}(?= )/g;
+
+		console.log(testString.match(regXHeader));
+
+		const options = ["h1", "h2", "h3", "h4", "h5", "h6"];
+
+		return options;
+	}
+
+	getItemText(item: string): string {
+		return item;
+	}
+
+	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
+		this.selection = item;
+		this.plugin.runAutoMOC(item, undefined);
+	}
+}
 
 export class TagSuggestModal extends FuzzySuggestModal<string> {
 	selection: string;
@@ -74,7 +134,7 @@ export class TagSuggestModal extends FuzzySuggestModal<string> {
 
 	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
 		this.selection = item;
-		this.plugin.runAutoMOC(item);
+		this.plugin.runAutoMOC(undefined, item);
 	}
 }
 
@@ -163,10 +223,12 @@ export default class AutoMOC extends Plugin {
 		if (!addFlag) new Notice("No new links found");
 	}
 
-	runAutoMOC(tag?: string) {
+	runAutoMOC(heading?: string, tag?: string) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
 		if (view != null && view.file.extension === "md") {
+			console.log(heading);
+
 			new Notice("Linking mentions");
 			const presentLinks = this.getPresentLinks(view.file.path); // links already in the document
 
@@ -193,7 +255,9 @@ export default class AutoMOC extends Plugin {
 				"sheets-in-box",
 				"AutoMOC",
 				(evt: MouseEvent) => {
-					this.runAutoMOC();
+					if (this.settings.linkToHeading)
+						new HeadingSuggestModel(this.app, this).open();
+					else this.runAutoMOC();
 				}
 			);
 		}
@@ -202,7 +266,9 @@ export default class AutoMOC extends Plugin {
 			id: "add-missing-linked-mentions",
 			name: "Add missing linked mentions at the cursor position",
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				this.runAutoMOC();
+				if (this.settings.linkToHeading)
+					new HeadingSuggestModel(this.app, this).open();
+				else this.runAutoMOC();
 			},
 		});
 
@@ -210,7 +276,12 @@ export default class AutoMOC extends Plugin {
 			id: "add-missing-notes-by-tag",
 			name: "Add missing notes with specific tag at the current cursor location",
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				new TagSuggestModal(this.app, this).open();
+				if (this.settings.linkToHeading)
+					new HeadingSuggestModel(
+						this.app,
+						this
+					).open(); //FIXME: this doesn't work at secondary level
+				else new TagSuggestModal(this.app, this).open();
 			},
 		});
 
@@ -256,6 +327,18 @@ class AutoMOCSettingTab extends PluginSettingTab {
 					.onChange((showRibbonButton) => {
 						this.plugin.settings.showRibbonButton =
 							showRibbonButton;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Link to heading")
+			.setDesc("Allows you to specify which heading to link to")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.linkToHeading)
+					.onChange((linkToHeading) => {
+						this.plugin.settings.linkToHeading = linkToHeading;
 						this.plugin.saveSettings();
 					});
 			});
