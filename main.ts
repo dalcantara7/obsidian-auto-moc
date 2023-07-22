@@ -57,10 +57,6 @@ export class HeadingSuggestModel extends FuzzySuggestModal<string> {
 	}
 
 	getItems(): string[] {
-		const testString = `\n# Clean-er ReactJS Code - Conditional Rendering\n\n## TL;DR\n\nMove render conditions into appropriately named variables. Abstract the condition logic into a function. This makes the render function code a lot easier to understand, refactor, reuse, test, and think about.\n\n## Introduction\n\nConditional rendering is when a logical operator determines what will be rendered. The following code is from the examples in the official ReactJS documentation. It is one of the simplest examples of conditional rendering that I can think of.\n\n`;
-
-		const regXHeader = /#{1,6}(?= )/g;
-
 		const options = ["h1", "h2", "h3", "h4", "h5", "h6"];
 
 		return options;
@@ -72,9 +68,6 @@ export class HeadingSuggestModel extends FuzzySuggestModal<string> {
 
 	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
 		this.selection = item;
-		// this.plugin.testCustom("abd");
-		// this.plugin.getLinkedMentionsLocations();
-		// this.plugin.getHeadingsInFile();
 		this.plugin.runAutoMOC(item, undefined);
 	}
 }
@@ -115,7 +108,7 @@ export class TagSuggestModal extends FuzzySuggestModal<string> {
 		let tagsSet = new Set<string>();
 
 		Object.keys(allFiles).forEach((key) => {
-			let file = this.app.vault.getAbstractFileByPath(key);
+			const file = this.app.vault.getAbstractFileByPath(key);
 			if (file instanceof TFile) {
 				const tags = app.metadataCache.getFileCache(file).tags;
 				//FIXME: add frontmatter tags here
@@ -145,14 +138,6 @@ export default class AutoMOC extends Plugin {
 
 	// FIXME: fix text on modal for tags
 	// FIXME: handle tags in frontmatter without "#"
-	getLinkedMentionsLocations() {
-		const currFile = this.app.workspace.getActiveFile().path;
-		const allFiles = this.app.metadataCache.resolvedLinks;
-		const presentLinks = Object.keys(allFiles[currFile]);
-
-		// console.log(presentLinks);
-	}
-
 	getPresentLinks(currFilePath: string) {
 		const allFiles = this.app.metadataCache.resolvedLinks;
 		const presentLinks = Object.keys(allFiles[currFilePath]);
@@ -178,7 +163,7 @@ export default class AutoMOC extends Plugin {
 		const toCompare = currFileName;
 
 		Object.keys(allFiles).forEach((key) => {
-			let file = this.app.vault.getAbstractFileByPath(key);
+			const file = this.app.vault.getAbstractFileByPath(key);
 			if (file instanceof TFile) {
 				const body_tags = app.metadataCache.getFileCache(file).tags;
 				const frontmatter_tags =
@@ -219,12 +204,12 @@ export default class AutoMOC extends Plugin {
 		//checks for missing links and adds them
 		for (const path of allLinkedMentions) {
 			if (!presentLinks.includes(path)) {
-				let found = this.app.vault.getAbstractFileByPath(path);
+				const file = this.app.vault.getAbstractFileByPath(path);
 
-				if (found instanceof TFile) {
+				if (file instanceof TFile) {
 					//check for aliases
 					const fileAliases =
-						this.app.metadataCache.getFileCache(found).frontmatter;
+						this.app.metadataCache.getFileCache(file).frontmatter;
 					let alias = "";
 
 					if (
@@ -235,33 +220,37 @@ export default class AutoMOC extends Plugin {
 						alias = "|" + fileAliases.aliases[0];
 					}
 
-					////check for closest heading
-					//parse file for headings locations
-					const headingsLocations =
-						await this.getHeadingsLocationsInFile(path);
-					//parse file for links locations
-					const linkTagLocation = await this.getLinkTagLocationInFile(
-						activeFileView,
-						path,
-						tag
-					);
-					//determine closest heading
-					const closestHeading = this.determineClosestHeading(
-						headingsLocations,
-						linkTagLocation
-					);
-					console.log(closestHeading);
-					let test = "#" + closestHeading;
-					console.log(test);
+					if (this.settings.linkToHeading) {
+						const headingsLocations =
+							await this.getHeadingsLocationsInFile(path);
+						const linkTagLocation =
+							await this.getLinkTagLocationInFile(
+								activeFileView,
+								path,
+								tag
+							);
+						const closestHeading = this.determineClosestHeading(
+							headingsLocations,
+							linkTagLocation
+						);
+						activeFileView.editor.replaceSelection(
+							this.app.fileManager.generateMarkdownLink(
+								file,
+								activeFileView.file.path,
+								"#" + closestHeading,
+								(alias = alias)
+							) + "\n"
+						);
+					} else {
+						activeFileView.editor.replaceSelection(
+							this.app.fileManager.generateMarkdownLink(
+								file,
+								activeFileView.file.path,
+								(alias = alias)
+							) + "\n"
+						);
+					}
 
-					activeFileView.editor.replaceSelection(
-						this.app.fileManager.generateMarkdownLink(
-							found,
-							activeFileView.file.path,
-							"#" + closestHeading,
-							(alias = alias)
-						) + "\n"
-					);
 					addFlag = true;
 				}
 			}
@@ -274,12 +263,12 @@ export default class AutoMOC extends Plugin {
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 
 		if (file instanceof TFile) {
-			const filePromise = await this.app.vault.read(file);
-			const lines = filePromise.split("\n");
+			const fileContent = await this.app.vault.read(file);
+			const lines = fileContent.split("\n");
 			const regXHeader = /#{1,6}\s.+(?=)/g;
 			let headings: Array<string> = [];
 			lines.forEach((line) => {
-				let match = line.match(regXHeader);
+				const match = line.match(regXHeader);
 				if (match) headings.push(match[0].replace(/#{1,6}\s/g, ""));
 				else headings.push("-1");
 			});
@@ -296,8 +285,8 @@ export default class AutoMOC extends Plugin {
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 
 		if (file instanceof TFile) {
-			const filePromise = await this.app.vault.read(file);
-			const lines = filePromise.split("\n");
+			const fileContent = await this.app.vault.read(file);
+			const lines = fileContent.split("\n");
 			let lineContent: Array<string> = [];
 			const activeFileName = activeFileView.file.name.substring(
 				0,
@@ -329,8 +318,6 @@ export default class AutoMOC extends Plugin {
 			if (item != "-1") distances.push(Math.abs(index - linkTagLocation));
 			else distances.push(-1);
 		});
-
-		console.log(distances);
 
 		let minIndex = -1;
 		let minValue = Infinity;
