@@ -387,7 +387,9 @@ class AutoMOCSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Link to heading")
-			.setDesc("Allows you to specify which heading to link to")
+			.setDesc(
+				"Creates the link to the heading closest to the link/tag. This is performed in a greedy manner"
+			)
 			.addToggle((toggle) => {
 				toggle
 					.setValue(this.plugin.settings.linkToHeading)
