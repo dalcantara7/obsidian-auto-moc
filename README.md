@@ -51,19 +51,25 @@ ALIAS
 in Preview Mode
 ```
 
-NOTE: you must use the proper YAML frontmatter structure shown below. Otherwise, the alias will not be recognized and the note will be imported without the alias
+NOTE: you must use the proper YAML frontmatter structure shown below. Otherwise, the alias/tag will not be recognized
 
 ```
-aliases: [Example, Example2]
+aliases: [alias1, alias2]
+tags: tag1, tag2
 ```
 
 or
 
 ```
 aliases:
-- Example
-- Example2
+- alias1
+- alias2
+tags:
+- tag1
+- tag2
 ```
+
+Frontmatter tags do not have a "#" prepended to them. Putting a "#" before a frontmatter tag is invalid YAML and will cause the tag not to be recognized
 
 <br>
 
