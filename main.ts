@@ -20,58 +20,6 @@ const DEFAULT_SETTINGS: AutoMOCSettings = {
 	linkToHeading: false,
 };
 
-export class HeadingSuggestModel extends FuzzySuggestModal<string> {
-	selection: string;
-	plugin: AutoMOC;
-
-	constructor(app: App, plugin: AutoMOC) {
-		super(app);
-		this.plugin = plugin;
-
-		this.modalEl.prepend(
-			this.modalEl.createEl("h2", {
-				text: "Choose heading to append to link",
-			})
-		);
-	}
-
-	onOpen(): void {
-		let { contentEl } = this;
-
-		this.setPlaceholder(
-			"Type the heading level desired (i.e. h1, h2, h3, etc.)..."
-		);
-		this.setInstructions([
-			{ command: "↑↓", purpose: "to navigate" },
-			{ command: "↵", purpose: "to select tag" },
-			{ command: "esc", purpose: "to dismiss" },
-		]);
-
-		this.inputEl.focus();
-	}
-
-	onClose() {
-		let { contentEl } = this;
-		contentEl.empty();
-		return this.selection;
-	}
-
-	getItems(): string[] {
-		const options = ["h1", "h2", "h3", "h4", "h5", "h6"];
-
-		return options;
-	}
-
-	getItemText(item: string): string {
-		return item;
-	}
-
-	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
-		this.selection = item;
-		this.plugin.runAutoMOC(item, undefined);
-	}
-}
-
 export class TagSuggestModal extends FuzzySuggestModal<string> {
 	selection: string;
 	plugin: AutoMOC;
@@ -79,16 +27,10 @@ export class TagSuggestModal extends FuzzySuggestModal<string> {
 	constructor(app: App, plugin: AutoMOC) {
 		super(app);
 		this.plugin = plugin;
-
-		this.modalEl.prepend(
-			this.modalEl.createEl("h2", {
-				text: "Import notes with tags matching",
-			})
-		);
 	}
 
 	onOpen(): void {
-		this.setPlaceholder("Type the name of a tag...");
+		this.setPlaceholder("Import notes with tags matching...");
 		this.setInstructions([
 			{ command: "↑↓", purpose: "to navigate" },
 			{ command: "↵", purpose: "to select tag" },
@@ -110,11 +52,20 @@ export class TagSuggestModal extends FuzzySuggestModal<string> {
 		Object.keys(allFiles).forEach((key) => {
 			const file = this.app.vault.getAbstractFileByPath(key);
 			if (file instanceof TFile) {
-				const tags = app.metadataCache.getFileCache(file).tags;
-				//FIXME: add frontmatter tags here
-				if (tags) {
-					for (const tag of tags) {
+				const body_tags = app.metadataCache.getFileCache(file).tags;
+				const frontmatter =
+					this.app.metadataCache.getFileCache(file).frontmatter;
+
+				if (body_tags) {
+					for (const tag of body_tags) {
 						tagsSet.add(tag["tag"]);
+					}
+				}
+
+				if (frontmatter && String.isString(frontmatter["tags"])) {
+					const f_tags = frontmatter["tags"].split(", ");
+					for (const f_tag of f_tags) {
+						tagsSet.add("#" + f_tag);
 					}
 				}
 			}
@@ -129,15 +80,13 @@ export class TagSuggestModal extends FuzzySuggestModal<string> {
 
 	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
 		this.selection = item;
-		this.plugin.runAutoMOC(undefined, item);
+		this.plugin.runAutoMOC(item);
 	}
 }
 
 export default class AutoMOC extends Plugin {
 	settings: AutoMOCSettings;
 
-	// FIXME: fix text on modal for tags
-	// FIXME: handle tags in frontmatter without "#"
 	getPresentLinks(currFilePath: string) {
 		const allFiles = this.app.metadataCache.resolvedLinks;
 		const presentLinks = Object.keys(allFiles[currFilePath]);
@@ -148,6 +97,7 @@ export default class AutoMOC extends Plugin {
 	getLinkedMentions(currFilePath: string) {
 		const allFiles = this.app.metadataCache.resolvedLinks;
 		let linkedMentions: Array<string> = [];
+
 		Object.keys(allFiles).forEach((key) => {
 			if (currFilePath in allFiles[key]) {
 				linkedMentions.push(key);
@@ -157,16 +107,16 @@ export default class AutoMOC extends Plugin {
 		return linkedMentions.sort();
 	}
 
-	getTaggedMentions(currFileName: string) {
+	getTaggedMentions(tag: string) {
 		const allFiles = this.app.metadataCache.resolvedLinks;
 		let taggedMentions: Array<string> = [];
-		const toCompare = currFileName;
+		const toCompare = tag.replace("#", "");
 
 		Object.keys(allFiles).forEach((key) => {
 			const file = this.app.vault.getAbstractFileByPath(key);
 			if (file instanceof TFile) {
 				const body_tags = app.metadataCache.getFileCache(file).tags;
-				const frontmatter_tags =
+				const frontmatter =
 					this.app.metadataCache.getFileCache(file).frontmatter;
 
 				if (body_tags) {
@@ -176,13 +126,11 @@ export default class AutoMOC extends Plugin {
 						}
 					}
 				}
-				if (
-					frontmatter_tags &&
-					Array.isArray(frontmatter_tags["tags"]) &&
-					frontmatter_tags["tags"].length > 0
-				) {
-					for (const tag of frontmatter_tags.tags) {
-						if (tag["tag"] == toCompare) {
+
+				if (frontmatter && String.isString(frontmatter["tags"])) {
+					const f_tags = frontmatter["tags"].split(", ");
+					for (const f_tag of f_tags) {
+						if (f_tag == toCompare) {
 							taggedMentions.push(file.path);
 						}
 					}
@@ -220,6 +168,8 @@ export default class AutoMOC extends Plugin {
 						alias = "|" + fileAliases.aliases[0];
 					}
 
+					let closestHeading = "";
+
 					if (this.settings.linkToHeading) {
 						const headingsLocations =
 							await this.getHeadingsLocationsInFile(path);
@@ -229,10 +179,14 @@ export default class AutoMOC extends Plugin {
 								path,
 								tag
 							);
-						const closestHeading = this.determineClosestHeading(
+						closestHeading = this.determineClosestHeading(
 							headingsLocations,
 							linkTagLocation
 						);
+					}
+
+					if (closestHeading) {
+						//if there is a closest heading, link to heading
 						activeFileView.editor.replaceSelection(
 							this.app.fileManager.generateMarkdownLink(
 								file,
@@ -242,6 +196,7 @@ export default class AutoMOC extends Plugin {
 							) + "\n"
 						);
 					} else {
+						//otherwise just link to note without heading
 						activeFileView.editor.replaceSelection(
 							this.app.fileManager.generateMarkdownLink(
 								file,
@@ -267,6 +222,7 @@ export default class AutoMOC extends Plugin {
 			const lines = fileContent.split("\n");
 			const regXHeader = /#{1,6}\s.+(?=)/g;
 			let headings: Array<string> = [];
+
 			lines.forEach((line) => {
 				const match = line.match(regXHeader);
 				if (match) headings.push(match[0].replace(/#{1,6}\s/g, ""));
@@ -292,10 +248,12 @@ export default class AutoMOC extends Plugin {
 				0,
 				activeFileView.file.name.length - 3
 			);
+
 			let toSearch = "";
 			if (!tag) {
 				toSearch = "[[" + activeFileName + "]]"; // -3 in order to remove ".md" from filepath
 			} else toSearch = tag;
+
 			lines.forEach((line) => {
 				if (line.includes(toSearch)) lineContent.push(toSearch);
 				else lineContent.push("-1");
@@ -309,9 +267,6 @@ export default class AutoMOC extends Plugin {
 		headingsLocations: Array<string>,
 		linkTagLocation: number
 	) {
-		// console.log(headingsLocations);
-		// console.log(linkTagLocation);
-
 		let distances: Array<number> = [];
 
 		headingsLocations.forEach((item, index) => {
@@ -333,7 +288,7 @@ export default class AutoMOC extends Plugin {
 		return headingsLocations[minIndex];
 	}
 
-	runAutoMOC(heading?: string, tag?: string) {
+	runAutoMOC(tag?: string) {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
 		if (view != null && view.file.extension === "md") {
@@ -363,9 +318,7 @@ export default class AutoMOC extends Plugin {
 				"sheets-in-box",
 				"AutoMOC",
 				(evt: MouseEvent) => {
-					if (this.settings.linkToHeading)
-						new HeadingSuggestModel(this.app, this).open();
-					else this.runAutoMOC();
+					this.runAutoMOC();
 				}
 			);
 		}
@@ -374,10 +327,7 @@ export default class AutoMOC extends Plugin {
 			id: "add-missing-linked-mentions",
 			name: "Add missing linked mentions at the cursor position",
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				if (this.settings.linkToHeading)
-					// new HeadingSuggestModel(this.app, this).open();
-					this.runAutoMOC();
-				else this.runAutoMOC();
+				this.runAutoMOC();
 			},
 		});
 
@@ -385,10 +335,7 @@ export default class AutoMOC extends Plugin {
 			id: "add-missing-notes-by-tag",
 			name: "Add missing notes with specific tag at the current cursor location",
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				if (this.settings.linkToHeading) {
-					// new HeadingSuggestModel(this.app, this).open(); //FIXME: this doesn't work at secondary level
-					new TagSuggestModal(this.app, this).open();
-				} else new TagSuggestModal(this.app, this).open();
+				new TagSuggestModal(this.app, this).open();
 			},
 		});
 

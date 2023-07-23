@@ -19,7 +19,9 @@ There are two commands that are currently supported: <br>
 
 2. Import notes based on tagged mentions
 
--   The plugin checks for tags matching the current file's name
+-   The plugin checks for tags matching the tag selected from a modal popup
+
+*   **NEW**: Support for frontmatter tags has been added
 
 After enabling this plugin, place your cursor in an editable markdown note where you want the links to be added.
 
@@ -35,7 +37,7 @@ Command 2 can be through the command pallette, or a keyboard shortcut (must be m
 
 ![demo](assets/modal-demo.gif)
 
-<br>
+### Frontmatter Support
 
 The plugin will check to see if a note has aliases in its frontmatter. If it finds one, it will import the note with the alias so that the link will be
 
@@ -63,6 +65,10 @@ aliases:
 - Example2
 ```
 
+<br>
+
+**NEW**: The plugin now has support for anchor links (linking to headings). This option is available in the plugin settings. When on, the plugin will search for the heading closest to the link or tag specified. This is done a greedy manner
+
 ## Known issues
 
 When creating a new link or tag, it may take a while for Obsidian to resolve the link/tag. In this time, the new link/tag may not be visible to the plugin and it will report "No new links found". To avoid this wait a couple of seconds between creating a new link/tag and running the AutoMOC plugin.
@@ -74,7 +80,3 @@ It is possible there are other bugs. If you come across one, please do report it
 This plugin is provided to everyone for free, however if you would like to say thanks or help support continued development, consider getting me a coffee. It keeps my work going.
 
 <a href="https://www.buymeacoffee.com/dalca7" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
-
-## Notes
-
-This plugin has **not** yet been tested on mobile.
