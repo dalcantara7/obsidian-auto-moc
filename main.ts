@@ -121,7 +121,7 @@ export default class AutoMOC extends Plugin {
 
 				if (body_tags) {
 					for (const tag of body_tags) {
-						if (tag["tag"] === toCompare) {
+						if (tag["tag"].replace("#", "") === toCompare) {
 							taggedMentions.push(file.path);
 						}
 					}
@@ -130,7 +130,7 @@ export default class AutoMOC extends Plugin {
 				if (frontmatter && String.isString(frontmatter["tags"])) {
 					const f_tags = frontmatter["tags"].split(", ");
 					for (const f_tag of f_tags) {
-						if (f_tag == toCompare) {
+						if (f_tag === toCompare) {
 							taggedMentions.push(file.path);
 						}
 					}
@@ -184,6 +184,8 @@ export default class AutoMOC extends Plugin {
 							linkTagLocation
 						);
 					}
+
+					console.log(closestHeading);
 
 					if (closestHeading) {
 						//if there is a closest heading, link to heading
@@ -284,6 +286,14 @@ export default class AutoMOC extends Plugin {
 				}
 			}
 		}
+
+		if (minIndex === linkTagLocation) {
+			headingsLocations[minIndex] = headingsLocations[minIndex]
+				.replace(/#/g, "")
+				.trim(); // need to explicitly remove all tags from name and trim trailing whitespaces
+		}
+
+		console.log(headingsLocations[minIndex]);
 
 		return headingsLocations[minIndex];
 	}
