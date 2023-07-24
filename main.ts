@@ -185,8 +185,6 @@ export default class AutoMOC extends Plugin {
 						);
 					}
 
-					console.log(closestHeading);
-
 					if (closestHeading) {
 						//if there is a closest heading, link to heading
 						activeFileView.editor.replaceSelection(
@@ -292,8 +290,6 @@ export default class AutoMOC extends Plugin {
 				.replace(/#/g, "")
 				.trim(); // need to explicitly remove all tags from name and trim trailing whitespaces
 		}
-
-		console.log(headingsLocations[minIndex]);
 
 		return headingsLocations[minIndex];
 	}
