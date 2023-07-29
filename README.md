@@ -30,7 +30,7 @@ Command 1 can be run through the command pallette, a keyboard shortcut (must be 
 
 ![demo](assets/auto-moc-demo.gif)
 
-Note: There is an option to disable the ribbon button in the plugin settings. The plugin can still be activated by using the command pallete or by using a mapped hotkey.
+**Note:** There is an option to disable the ribbon button in the plugin settings. The plugin can still be activated by using the command pallete or by using a mapped hotkey.
 
 <br>
 Command 2 can be through the command pallette, or a keyboard shortcut (must be mapped), but not through the ribbon button. It will open a modal which will prompt for a tag. Once you select the tag you want, all notes that have the tag will be imported into the current note at the current cursor position.
@@ -51,7 +51,7 @@ ALIAS
 in Preview Mode
 ```
 
-NOTE: you must use the proper YAML frontmatter structure shown below. Otherwise, the alias/tag will not be recognized
+**NOTE:** you must use the proper YAML frontmatter structure shown below. Otherwise, the alias/tag will not be recognized
 
 ```
 aliases: [alias1, alias2]
@@ -69,7 +69,8 @@ tags:
 - tag2
 ```
 
-Frontmatter tags do not have a "#" prepended to them. Putting a "#" before a frontmatter tag is invalid YAML and will cause the tag not to be recognized
+Frontmatter tags do not have a "#" prepended to them. Putting a "#" before a frontmatter tag is invalid YAML and will cause the tag not to be recognized.
+**NOTE:** Frontmatter tags cannot be linked to the nearest heading since the frontmatter
 
 <br>
 

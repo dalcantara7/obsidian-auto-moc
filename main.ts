@@ -138,7 +138,11 @@ export default class AutoMOC extends Plugin {
 			}
 		});
 
-		return taggedMentions;
+		const uniqueTaggedMentions = taggedMentions.filter(
+			(value, index, array) => array.indexOf(value) === index
+		);
+
+		return uniqueTaggedMentions;
 	}
 
 	async addMissingLinks(
@@ -169,32 +173,38 @@ export default class AutoMOC extends Plugin {
 					}
 
 					let closestHeading = "";
+					let allHeadings: Array<string> = [];
 
 					if (this.settings.linkToHeading) {
 						const headingsLocations =
 							await this.getHeadingsLocationsInFile(path);
-						const linkTagLocation =
-							await this.getLinkTagLocationInFile(
+						const linkTagLocations =
+							await this.getLinkTagLocationsInFile(
 								activeFileView,
 								path,
 								tag
 							);
-						closestHeading = this.determineClosestHeading(
-							headingsLocations,
-							linkTagLocation
-						);
+						for (let i = 0; i < linkTagLocations.length; i++) {
+							closestHeading = this.determineClosestHeading(
+								headingsLocations,
+								linkTagLocations[i]
+							);
+							allHeadings.push(closestHeading);
+						}
 					}
 
-					if (closestHeading) {
+					if (allHeadings) {
 						//if there is a closest heading, link to heading
-						activeFileView.editor.replaceSelection(
-							this.app.fileManager.generateMarkdownLink(
-								file,
-								activeFileView.file.path,
-								"#" + closestHeading,
-								(alias = alias)
-							) + "\n"
-						);
+						for (let i = 0; i < allHeadings.length; i++) {
+							activeFileView.editor.replaceSelection(
+								this.app.fileManager.generateMarkdownLink(
+									file,
+									activeFileView.file.path,
+									"#" + allHeadings[i],
+									(alias = alias)
+								) + "\n"
+							);
+						}
 					} else {
 						//otherwise just link to note without heading
 						activeFileView.editor.replaceSelection(
@@ -233,7 +243,7 @@ export default class AutoMOC extends Plugin {
 		}
 	}
 
-	async getLinkTagLocationInFile(
+	async getLinkTagLocationsInFile(
 		activeFileView: MarkdownView,
 		filePath: string,
 		tag?: string
@@ -259,7 +269,12 @@ export default class AutoMOC extends Plugin {
 				else lineContent.push("-1");
 			});
 
-			return lineContent.indexOf(toSearch);
+			let toReturn: Array<number> = [];
+			for (let i = 0; i < lineContent.length; i++) {
+				if (lineContent[i] === toSearch) toReturn.push(i);
+			}
+
+			return toReturn;
 		}
 	}
 
@@ -276,7 +291,7 @@ export default class AutoMOC extends Plugin {
 
 		let minIndex = -1;
 		let minValue = Infinity;
-		for (let len = distances.length, i = 0; i < len; i += 1) {
+		for (let i = 0; i < distances.length; i += 1) {
 			if (distances[i] != -1) {
 				if (distances[i] < minValue) {
 					minIndex = i;
