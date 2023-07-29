@@ -71,7 +71,7 @@ tags:
 
 Frontmatter tags do not have a "#" prepended to them. Putting a "#" before a frontmatter tag is invalid YAML and will cause the tag not to be recognized.
 
-**NOTE:** Frontmatter tags cannot be linked to the nearest heading since the frontmatter
+**NOTE:** Frontmatter tags cannot be linked to the nearest heading
 
 <br>
 
