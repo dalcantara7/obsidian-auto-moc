@@ -71,11 +71,11 @@ tags:
 
 Frontmatter tags do not have a "#" prepended to them. Putting a "#" before a frontmatter tag is invalid YAML and will cause the tag not to be recognized.
 
-**NOTE:** Frontmatter tags cannot be linked to the nearest heading
-
 <br>
 
 **NEW**: The plugin now has support for anchor links (linking to headings). This option is available in the plugin settings. When on, the plugin will search for the heading closest to the link or tag specified. This is done a greedy manner
+
+**NOTE:** Frontmatter tags cannot be linked to the nearest heading
 
 ## Known issues
 
