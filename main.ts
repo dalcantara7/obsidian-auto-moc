@@ -62,10 +62,21 @@ export class TagSuggestModal extends FuzzySuggestModal<string> {
 					}
 				}
 
-				if (frontmatter && String.isString(frontmatter["tags"])) {
-					const f_tags = frontmatter["tags"].split(", ");
-					for (const f_tag of f_tags) {
-						tagsSet.add("#" + f_tag);
+				let f_tags: Array<string> = [];
+				if (frontmatter) {
+					if (Array.isArray(frontmatter["tags"])) {
+						f_tags = frontmatter["tags"];
+
+						for (const f_tag of f_tags) {
+							tagsSet.add("#" + f_tag);
+						}
+					}
+					if (String.isString(frontmatter["tags"])) {
+						f_tags = frontmatter["tags"].split(", ");
+
+						for (const f_tag of f_tags) {
+							tagsSet.add("#" + f_tag);
+						}
 					}
 				}
 			}
@@ -127,11 +138,24 @@ export default class AutoMOC extends Plugin {
 					}
 				}
 
-				if (frontmatter && String.isString(frontmatter["tags"])) {
-					const f_tags = frontmatter["tags"].split(", ");
-					for (const f_tag of f_tags) {
-						if (f_tag === toCompare) {
-							taggedMentions.push(file.path);
+				if (frontmatter) {
+					let f_tags: Array<string> = [];
+					if (Array.isArray(frontmatter["tags"])) {
+						f_tags = frontmatter["tags"];
+
+						for (const f_tag of f_tags) {
+							if (f_tag === toCompare) {
+								taggedMentions.push(file.path);
+							}
+						}
+					}
+					if (String.isString(frontmatter["tags"])) {
+						f_tags = frontmatter["tags"].split(", ");
+
+						for (const f_tag of f_tags) {
+							if (f_tag === toCompare) {
+								taggedMentions.push(file.path);
+							}
 						}
 					}
 				}
@@ -193,7 +217,7 @@ export default class AutoMOC extends Plugin {
 						}
 					}
 
-					if (allHeadings) {
+					if (allHeadings.length > 0) {
 						//if there is a closest heading, link to heading
 						for (let i = 0; i < allHeadings.length; i++) {
 							activeFileView.editor.replaceSelection(
