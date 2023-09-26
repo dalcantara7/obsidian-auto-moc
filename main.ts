@@ -13,11 +13,19 @@ import {
 interface AutoMOCSettings {
 	showRibbonButton: boolean;
 	linkToHeading: boolean;
+
+	//notifications
+	linkingMentionsNotice: boolean;
+	noNewLinksNotice: boolean;
 }
 
 const DEFAULT_SETTINGS: AutoMOCSettings = {
 	showRibbonButton: true,
 	linkToHeading: false,
+
+	//notifications
+	linkingMentionsNotice: true,
+	noNewLinksNotice: true,
 };
 
 export class TagSuggestModal extends FuzzySuggestModal<string> {
@@ -245,7 +253,8 @@ export default class AutoMOC extends Plugin {
 			}
 		}
 
-		if (!addFlag) new Notice("No new links found");
+		if (this.settings.noNewLinksNotice && !addFlag)
+			new Notice("No new links found");
 	}
 
 	async getHeadingsLocationsInFile(filePath: string) {
@@ -337,7 +346,9 @@ export default class AutoMOC extends Plugin {
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
 		if (view != null && view.file.extension === "md") {
-			new Notice("Linking mentions");
+			if (this.settings.linkingMentionsNotice)
+				new Notice("Linking mentions");
+
 			const presentLinks = this.getPresentLinks(view.file.path); // links already in the document
 
 			let linkTagMentions: Array<string>;
@@ -415,6 +426,8 @@ class AutoMOCSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		containerEl.createEl("h2", { text: "Functionality" });
+
 		new Setting(containerEl)
 			.setName("Show ribbon button")
 			.setDesc(
@@ -440,6 +453,36 @@ class AutoMOCSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.linkToHeading)
 					.onChange((linkToHeading) => {
 						this.plugin.settings.linkToHeading = linkToHeading;
+						this.plugin.saveSettings();
+					});
+			});
+
+		containerEl.createEl("h2", { text: "Notifications" });
+
+		new Setting(containerEl)
+			.setName("Linking mentions")
+			.setDesc(
+				"Enable or disable notifications for when AutoMoc begins to run"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.linkingMentionsNotice)
+					.onChange((value) => {
+						this.plugin.settings.linkingMentionsNotice = value;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("No new links found")
+			.setDesc(
+				"Enable or disable notifications for when no new links are added to a note"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.noNewLinksNotice)
+					.onChange((value) => {
+						this.plugin.settings.noNewLinksNotice = value;
 						this.plugin.saveSettings();
 					});
 			});
