@@ -17,6 +17,7 @@ interface AutoMOCSettings {
 	//notifications
 	linkingMentionsNotice: boolean;
 	noNewLinksNotice: boolean;
+	newLinksAddedNotice: boolean;
 }
 
 const DEFAULT_SETTINGS: AutoMOCSettings = {
@@ -26,6 +27,7 @@ const DEFAULT_SETTINGS: AutoMOCSettings = {
 	//notifications
 	linkingMentionsNotice: true,
 	noNewLinksNotice: true,
+	newLinksAddedNotice: false,
 };
 
 export class TagSuggestModal extends FuzzySuggestModal<string> {
@@ -253,7 +255,9 @@ export default class AutoMOC extends Plugin {
 			}
 		}
 
-		if (this.settings.noNewLinksNotice && !addFlag)
+		if (this.settings.newLinksAddedNotice && addFlag)
+			new Notice("New links added to note");
+		else if (this.settings.noNewLinksNotice && !addFlag)
 			new Notice("No new links found");
 	}
 
@@ -469,6 +473,20 @@ class AutoMOCSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.linkingMentionsNotice)
 					.onChange((value) => {
 						this.plugin.settings.linkingMentionsNotice = value;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("New links added")
+			.setDesc(
+				"Enable or disable notifications for when new links are added to a note"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.newLinksAddedNotice)
+					.onChange((value) => {
+						this.plugin.settings.newLinksAddedNotice = value;
 						this.plugin.saveSettings();
 					});
 			});
