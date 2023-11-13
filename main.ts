@@ -30,6 +30,12 @@ const DEFAULT_SETTINGS: AutoMOCSettings = {
 	newLinksAddedNotice: false,
 };
 
+enum itemTypes {
+	Link = "LINK",
+	Tag = "TAG",
+	Alias = "ALIAS",
+}
+
 export class TagSuggestModal extends FuzzySuggestModal<string> {
 	selection: string;
 	plugin: AutoMOC;
@@ -101,7 +107,75 @@ export class TagSuggestModal extends FuzzySuggestModal<string> {
 
 	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
 		this.selection = item;
-		this.plugin.runAutoMOC(item);
+		this.plugin.runAutoMOC(itemTypes.Tag, item);
+	}
+}
+
+export class AliasSuggestModal extends FuzzySuggestModal<string> {
+	selection: string;
+	plugin: AutoMOC;
+
+	constructor(app: App, plugin: AutoMOC) {
+		super(app);
+		this.plugin = plugin;
+	}
+
+	onOpen(): void {
+		this.setPlaceholder("Import notes with alias matching...");
+		this.setInstructions([
+			{ command: "↑↓", purpose: "to navigate" },
+			{ command: "↵", purpose: "to select tag" },
+			{ command: "esc", purpose: "to dismiss" },
+		]);
+
+		this.inputEl.focus();
+	}
+
+	onClose() {
+		let { contentEl } = this;
+		contentEl.empty();
+	}
+
+	getItems(): string[] {
+		const allFiles = this.app.metadataCache.resolvedLinks;
+		let aliasSet = new Set<string>();
+
+		Object.keys(allFiles).forEach((key) => {
+			const file = this.app.vault.getAbstractFileByPath(key);
+			if (file instanceof TFile) {
+				const frontmatter =
+					this.app.metadataCache.getFileCache(file).frontmatter;
+
+				let aliases: Array<string> = [];
+				if (frontmatter) {
+					if (Array.isArray(frontmatter["aliases"])) {
+						aliases = frontmatter["aliases"];
+
+						for (const alias of aliases) {
+							aliasSet.add(alias);
+						}
+					}
+					if (String.isString(frontmatter["aliases"])) {
+						aliases = frontmatter["aliases"].split(", ");
+
+						for (const alias of aliases) {
+							aliasSet.add(alias);
+						}
+					}
+				}
+			}
+		});
+
+		return Array.from(aliasSet).sort();
+	}
+
+	getItemText(item: string): string {
+		return item;
+	}
+
+	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
+		this.selection = item;
+		this.plugin.runAutoMOC(itemTypes.Alias, item);
 	}
 }
 
@@ -179,11 +253,52 @@ export default class AutoMOC extends Plugin {
 		return uniqueTaggedMentions;
 	}
 
+	getAliasMentions(refAlias: string) {
+		const allFiles = this.app.metadataCache.resolvedLinks;
+		let aliasMentions: Array<string> = [];
+
+		Object.keys(allFiles).forEach((key) => {
+			const file = this.app.vault.getAbstractFileByPath(key);
+			if (file instanceof TFile) {
+				const frontmatter =
+					this.app.metadataCache.getFileCache(file).frontmatter;
+
+				if (frontmatter) {
+					let aliases: Array<string> = [];
+					if (Array.isArray(frontmatter["aliases"])) {
+						aliases = frontmatter["aliases"];
+
+						for (const alias of aliases) {
+							if (alias === refAlias) {
+								aliasMentions.push(file.path);
+							}
+						}
+					}
+					if (String.isString(frontmatter["aliases"])) {
+						aliases = frontmatter["aliases"].split(", ");
+
+						for (const alias of aliases) {
+							if (alias === refAlias) {
+								aliasMentions.push(file.path);
+							}
+						}
+					}
+				}
+			}
+		});
+
+		const uniqueAliasMentions = aliasMentions.filter(
+			(value, index, array) => array.indexOf(value) === index
+		);
+
+		return uniqueAliasMentions;
+	}
+
 	async addMissingLinks(
 		activeFileView: MarkdownView,
 		presentLinks: Array<string>,
 		allLinkedMentions: Array<string>,
-		tag?: string
+		item?: string
 	) {
 		let addFlag = false;
 
@@ -194,16 +309,16 @@ export default class AutoMOC extends Plugin {
 
 				if (file instanceof TFile) {
 					//check for aliases
-					const fileAliases =
+					const frontmatter =
 						this.app.metadataCache.getFileCache(file).frontmatter;
 					let alias = "";
 
 					if (
-						fileAliases &&
-						Array.isArray(fileAliases["aliases"]) &&
-						fileAliases["aliases"].length > 0
+						frontmatter &&
+						Array.isArray(frontmatter["aliases"]) &&
+						frontmatter["aliases"].length > 0
 					) {
-						alias = "|" + fileAliases.aliases[0];
+						alias = "|" + frontmatter.aliases[0];
 					}
 
 					let closestHeading = "";
@@ -213,10 +328,10 @@ export default class AutoMOC extends Plugin {
 						const headingsLocations =
 							await this.getHeadingsLocationsInFile(path);
 						const linkTagLocations =
-							await this.getLinkTagLocationsInFile(
+							await this.getItemLocationsInFile(
 								activeFileView,
 								path,
-								tag
+								item
 							);
 						for (let i = 0; i < linkTagLocations.length; i++) {
 							closestHeading = this.determineClosestHeading(
@@ -280,10 +395,10 @@ export default class AutoMOC extends Plugin {
 		}
 	}
 
-	async getLinkTagLocationsInFile(
+	async getItemLocationsInFile(
 		activeFileView: MarkdownView,
 		filePath: string,
-		tag?: string
+		item?: string
 	) {
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 
@@ -297,9 +412,9 @@ export default class AutoMOC extends Plugin {
 			);
 
 			let toSearch = "";
-			if (!tag) {
+			if (!item) {
 				toSearch = "[[" + activeFileName + "]]"; // -3 in order to remove ".md" from filepath
-			} else toSearch = tag;
+			} else toSearch = item;
 
 			lines.forEach((line) => {
 				if (line.includes(toSearch)) lineContent.push(toSearch);
@@ -317,12 +432,12 @@ export default class AutoMOC extends Plugin {
 
 	determineClosestHeading(
 		headingsLocations: Array<string>,
-		linkTagLocation: number
+		itemLocation: number
 	) {
 		let distances: Array<number> = [];
 
 		headingsLocations.forEach((item, index) => {
-			if (item != "-1") distances.push(Math.abs(index - linkTagLocation));
+			if (item != "-1") distances.push(Math.abs(index - itemLocation));
 			else distances.push(-1);
 		});
 
@@ -337,7 +452,7 @@ export default class AutoMOC extends Plugin {
 			}
 		}
 
-		if (minIndex === linkTagLocation) {
+		if (minIndex === itemLocation) {
 			headingsLocations[minIndex] = headingsLocations[minIndex]
 				.replace(/#/g, "")
 				.trim(); // need to explicitly remove all tags from name and trim trailing whitespaces
@@ -346,7 +461,12 @@ export default class AutoMOC extends Plugin {
 		return headingsLocations[minIndex];
 	}
 
-	runAutoMOC(tag?: string) {
+	runAutoMOC(itemType: string, item?: string) {
+		if (!Object.values<string>(itemTypes).includes(itemType)) {
+			new Notice("Invalid itemType provided");
+			return;
+		}
+
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
 		if (view != null && view.file.extension === "md") {
@@ -356,13 +476,15 @@ export default class AutoMOC extends Plugin {
 			const presentLinks = this.getPresentLinks(view.file.path); // links already in the document
 
 			let linkTagMentions: Array<string>;
-			if (!tag) {
+			if (itemType == itemTypes.Link) {
 				linkTagMentions = this.getLinkedMentions(view.file.path); // all linked mentions even those not present
-			} else {
-				linkTagMentions = this.getTaggedMentions(tag); // tagged mentions are looked up by basename rather than path
+			} else if (itemType == itemTypes.Tag) {
+				linkTagMentions = this.getTaggedMentions(item); // tagged mentions are looked up by basename rather than path
+			} else if (itemType == itemTypes.Alias) {
+				linkTagMentions = this.getAliasMentions(item); // alias mentions are looked up by basename rather than path
 			}
 
-			this.addMissingLinks(view, presentLinks, linkTagMentions, tag);
+			this.addMissingLinks(view, presentLinks, linkTagMentions, item);
 		} else {
 			new Notice(
 				"Failed to link mentions, file type is not a markdown file"
@@ -378,7 +500,7 @@ export default class AutoMOC extends Plugin {
 				"sheets-in-box",
 				"AutoMOC",
 				(evt: MouseEvent) => {
-					this.runAutoMOC();
+					this.runAutoMOC(itemTypes.Link);
 				}
 			);
 		}
@@ -387,15 +509,23 @@ export default class AutoMOC extends Plugin {
 			id: "add-missing-linked-mentions",
 			name: "Add missing linked mentions at the cursor position",
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				this.runAutoMOC();
+				this.runAutoMOC(itemTypes.Link);
 			},
 		});
 
 		this.addCommand({
 			id: "add-missing-notes-by-tag",
-			name: "Add missing notes with specific tag at the current cursor location",
+			name: "Add missing notes with a specific tag at the current cursor location",
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				new TagSuggestModal(this.app, this).open();
+			},
+		});
+
+		this.addCommand({
+			id: "add-missing-notes-by-alias",
+			name: "Add missing notes with a specific alias at the current cursor location",
+			editorCallback: (editor: Editor, view: MarkdownView) => {
+				new AliasSuggestModal(this.app, this).open();
 			},
 		});
 
@@ -430,6 +560,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
+		//Functionality Settings
 		containerEl.createEl("h2", { text: "Functionality" });
 
 		new Setting(containerEl)
@@ -461,6 +592,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 					});
 			});
 
+		//Notification Settings
 		containerEl.createEl("h2", { text: "Notifications" });
 
 		new Setting(containerEl)
