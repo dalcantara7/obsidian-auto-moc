@@ -84,6 +84,8 @@ Frontmatter tags do not have a "#" prepended to them. Putting a "#" before a fro
 
 The plugin has support for anchor links (linking to headings). This option is available in the plugin settings. When on, the plugin will search for the heading closest to the link or tag specified. This is done a greedy manner.
 
+**NEW:** The plugin has support for importing notes as a list. List formats supported include: unordered list, ordered list (period or parenthesis delimited), or checkbox list.
+
 ## Known issues
 
 When creating a new link or tag, it may take a while for Obsidian to resolve the link/tag. In this time, the new link/tag may not be visible to the plugin and it will report "No new links found". To avoid this wait a couple of seconds between creating a new link/tag and running the AutoMOC plugin.

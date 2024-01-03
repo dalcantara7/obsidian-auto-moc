@@ -10,9 +10,30 @@ import {
 	FuzzySuggestModal,
 } from "obsidian";
 
+enum importListTypes {
+	Disabled = "DISABLE",
+	OrderedList = "ORDERED",
+	UnorderedList = "UNORDERED",
+	CheckBox = "CHECKBOX",
+}
+
+enum orderedListDelimeters {
+	Parenthesis = ")",
+	Period = ".",
+}
+
+enum itemTypes {
+	Link = "LINK",
+	Tag = "TAG",
+	Alias = "ALIAS",
+}
+
 interface AutoMOCSettings {
+	//general
 	showRibbonButton: boolean;
 	linkToHeading: boolean;
+	importAsList: string;
+	orderedListSeparator: string;
 
 	//notifications
 	linkingMentionsNotice: boolean;
@@ -21,20 +42,17 @@ interface AutoMOCSettings {
 }
 
 const DEFAULT_SETTINGS: AutoMOCSettings = {
+	//general
 	showRibbonButton: true,
 	linkToHeading: false,
+	importAsList: importListTypes.Disabled,
+	orderedListSeparator: orderedListDelimeters.Period,
 
 	//notifications
 	linkingMentionsNotice: true,
 	noNewLinksNotice: true,
 	newLinksAddedNotice: false,
 };
-
-enum itemTypes {
-	Link = "LINK",
-	Tag = "TAG",
-	Alias = "ALIAS",
-}
 
 export class TagSuggestModal extends FuzzySuggestModal<string> {
 	selection: string;
@@ -302,6 +320,23 @@ export default class AutoMOC extends Plugin {
 	) {
 		let addFlag = false;
 
+		// define list delimeters
+		let listChar = "";
+		let listIter = -1;
+		let importPrefix = "";
+
+		if (this.settings.importAsList === importListTypes.UnorderedList) {
+			listChar = "*";
+			importPrefix = listChar + " ";
+		} else if (this.settings.importAsList === importListTypes.CheckBox) {
+			listChar = "- [ ]";
+			importPrefix = listChar + " ";
+		} else if (this.settings.importAsList == importListTypes.OrderedList) {
+			listChar = this.settings.orderedListSeparator;
+			listIter = 1;
+			importPrefix = listIter + listChar + " ";
+		}
+
 		//checks for missing links and adds them
 		for (const path of allLinkedMentions) {
 			if (!presentLinks.includes(path)) {
@@ -346,23 +381,34 @@ export default class AutoMOC extends Plugin {
 						//if there is a closest heading, link to heading
 						for (let i = 0; i < allHeadings.length; i++) {
 							activeFileView.editor.replaceSelection(
-								this.app.fileManager.generateMarkdownLink(
-									file,
-									activeFileView.file.path,
-									"#" + allHeadings[i],
-									(alias = alias)
-								) + "\n"
+								importPrefix +
+									this.app.fileManager.generateMarkdownLink(
+										file,
+										activeFileView.file.path,
+										"#" + allHeadings[i],
+										(alias = alias)
+									) +
+									"\n"
 							);
 						}
 					} else {
 						//otherwise just link to note without heading
 						activeFileView.editor.replaceSelection(
-							this.app.fileManager.generateMarkdownLink(
-								file,
-								activeFileView.file.path,
-								(alias = alias)
-							) + "\n"
+							importPrefix +
+								this.app.fileManager.generateMarkdownLink(
+									file,
+									activeFileView.file.path,
+									(alias = alias)
+								) +
+								"\n"
 						);
+					}
+					if (
+						this.settings.importAsList ===
+						importListTypes.OrderedList
+					) {
+						listIter += 1;
+						importPrefix = listIter + listChar + " ";
 					}
 
 					addFlag = true;
@@ -588,6 +634,40 @@ class AutoMOCSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.linkToHeading)
 					.onChange((linkToHeading) => {
 						this.plugin.settings.linkToHeading = linkToHeading;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Import as list")
+			.setDesc(
+				"Choose whether to import the links directly or as a ordered/unordered list"
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption(importListTypes.Disabled, "Disabled")
+					.addOption(importListTypes.OrderedList, "Ordered List")
+					.addOption(importListTypes.UnorderedList, "Unordered List")
+					.addOption(importListTypes.CheckBox, "Checkbox")
+					.setValue(this.plugin.settings.importAsList)
+					.onChange((importValue) => {
+						this.plugin.settings.importAsList = importValue;
+						this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Ordered list separator character")
+			.setDesc(
+				'If "Import as List" is set to "Ordered List" - Set what character separates the number from the list item'
+			)
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption(orderedListDelimeters.Period, "Period")
+					.addOption(orderedListDelimeters.Parenthesis, "Parenthesis")
+					.setValue(this.plugin.settings.orderedListSeparator)
+					.onChange((value) => {
+						this.plugin.settings.orderedListSeparator = value;
 						this.plugin.saveSettings();
 					});
 			});
