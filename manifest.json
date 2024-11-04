@@ -1,7 +1,7 @@
 {
 	"id": "auto-moc",
 	"name": "AutoMOC",
-	"version": "1.4.0",
+	"version": "1.5.0",
 	"minAppVersion": "0.12.0",
 	"description": "Looks for missing linked mentions or notes with a specific tag or alias and imports them into the current note.",
 	"author": "Diego Alcantara",

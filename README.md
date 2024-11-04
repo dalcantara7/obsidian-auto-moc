@@ -84,7 +84,9 @@ Frontmatter tags do not have a "#" prepended to them. Putting a "#" before a fro
 
 The plugin has support for anchor links (linking to headings). This option is available in the plugin settings. When on, the plugin will search for the heading closest to the link or tag specified. This is done a greedy manner.
 
-**NEW:** The plugin has support for importing notes as a list. List formats supported include: unordered list, ordered list (period or parenthesis delimited), or checkbox list.
+The plugin has support for importing notes as a list. List formats supported include: unordered list, ordered list (period or parenthesis delimited), or checkbox list.
+
+**NEW:** The plugin has a support for ignoring notes in certain folders. You can add a comma separated list of folder paths to ignore in the settings (e.g. /folder, folder/subfolder, folder/subfolder/subsubfolder/). Any notes within those folder with links to the current note will be ignored. **Note**: all folder paths must be defined from the root of your vault.
 
 ## Known issues
 

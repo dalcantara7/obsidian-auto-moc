@@ -34,6 +34,7 @@ interface AutoMOCSettings {
 	linkToHeading: boolean;
 	importAsList: string;
 	orderedListSeparator: string;
+	ignoredFolders: string;
 
 	//notifications
 	linkingMentionsNotice: boolean;
@@ -47,6 +48,7 @@ const DEFAULT_SETTINGS: AutoMOCSettings = {
 	linkToHeading: false,
 	importAsList: importListTypes.Disabled,
 	orderedListSeparator: orderedListDelimeters.Period,
+	ignoredFolders: "",
 
 	//notifications
 	linkingMentionsNotice: true,
@@ -211,9 +213,18 @@ export default class AutoMOC extends Plugin {
 		const allFiles = this.app.metadataCache.resolvedLinks;
 		let linkedMentions: Array<string> = [];
 
+		let ignoredFolders = this.settings.ignoredFolders
+			.trim()
+			.split(",")
+			.map((str) => str.trim().replace(/^\/|\/$/g, ""))
+			.filter((n) => n);
+
 		Object.keys(allFiles).forEach((key) => {
-			if (currFilePath in allFiles[key]) {
-				linkedMentions.push(key);
+			if (!ignoredFolders.some((path) => key.includes(path))) {
+				//check if file is in an ignored folder
+				if (currFilePath in allFiles[key]) {
+					linkedMentions.push(key);
+				}
 			}
 		});
 
@@ -225,38 +236,47 @@ export default class AutoMOC extends Plugin {
 		let taggedMentions: Array<string> = [];
 		const toCompare = tag.replace("#", "");
 
+		let ignoredFolders = this.settings.ignoredFolders
+			.trim()
+			.split(",")
+			.map((str) => str.trim().replace(/^\/|\/$/g, ""))
+			.filter((n) => n);
+
 		Object.keys(allFiles).forEach((key) => {
-			const file = this.app.vault.getAbstractFileByPath(key);
-			if (file instanceof TFile) {
-				const body_tags = app.metadataCache.getFileCache(file).tags;
-				const frontmatter =
-					this.app.metadataCache.getFileCache(file).frontmatter;
+			//check if file is in an ignored folder
+			if (!ignoredFolders.some((path) => key.includes(path))) {
+				const file = this.app.vault.getAbstractFileByPath(key);
+				if (file instanceof TFile) {
+					const body_tags = app.metadataCache.getFileCache(file).tags;
+					const frontmatter =
+						this.app.metadataCache.getFileCache(file).frontmatter;
 
-				if (body_tags) {
-					for (const tag of body_tags) {
-						if (tag["tag"].replace("#", "") === toCompare) {
-							taggedMentions.push(file.path);
-						}
-					}
-				}
-
-				if (frontmatter) {
-					let f_tags: Array<string> = [];
-					if (Array.isArray(frontmatter["tags"])) {
-						f_tags = frontmatter["tags"];
-
-						for (const f_tag of f_tags) {
-							if (f_tag === toCompare) {
+					if (body_tags) {
+						for (const tag of body_tags) {
+							if (tag["tag"].replace("#", "") === toCompare) {
 								taggedMentions.push(file.path);
 							}
 						}
 					}
-					if (String.isString(frontmatter["tags"])) {
-						f_tags = frontmatter["tags"].split(", ");
 
-						for (const f_tag of f_tags) {
-							if (f_tag === toCompare) {
-								taggedMentions.push(file.path);
+					if (frontmatter) {
+						let f_tags: Array<string> = [];
+						if (Array.isArray(frontmatter["tags"])) {
+							f_tags = frontmatter["tags"];
+
+							for (const f_tag of f_tags) {
+								if (f_tag === toCompare) {
+									taggedMentions.push(file.path);
+								}
+							}
+						}
+						if (String.isString(frontmatter["tags"])) {
+							f_tags = frontmatter["tags"].split(", ");
+
+							for (const f_tag of f_tags) {
+								if (f_tag === toCompare) {
+									taggedMentions.push(file.path);
+								}
 							}
 						}
 					}
@@ -275,29 +295,38 @@ export default class AutoMOC extends Plugin {
 		const allFiles = this.app.metadataCache.resolvedLinks;
 		let aliasMentions: Array<string> = [];
 
+		let ignoredFolders = this.settings.ignoredFolders
+			.trim()
+			.split(",")
+			.map((str) => str.trim().replace(/^\/|\/$/g, ""))
+			.filter((n) => n);
+
 		Object.keys(allFiles).forEach((key) => {
-			const file = this.app.vault.getAbstractFileByPath(key);
-			if (file instanceof TFile) {
-				const frontmatter =
-					this.app.metadataCache.getFileCache(file).frontmatter;
+			//check if file is in an ignored folder
+			if (!ignoredFolders.some((path) => key.includes(path))) {
+				const file = this.app.vault.getAbstractFileByPath(key);
+				if (file instanceof TFile) {
+					const frontmatter =
+						this.app.metadataCache.getFileCache(file).frontmatter;
 
-				if (frontmatter) {
-					let aliases: Array<string> = [];
-					if (Array.isArray(frontmatter["aliases"])) {
-						aliases = frontmatter["aliases"];
+					if (frontmatter) {
+						let aliases: Array<string> = [];
+						if (Array.isArray(frontmatter["aliases"])) {
+							aliases = frontmatter["aliases"];
 
-						for (const alias of aliases) {
-							if (alias === refAlias) {
-								aliasMentions.push(file.path);
+							for (const alias of aliases) {
+								if (alias === refAlias) {
+									aliasMentions.push(file.path);
+								}
 							}
 						}
-					}
-					if (String.isString(frontmatter["aliases"])) {
-						aliases = frontmatter["aliases"].split(", ");
+						if (String.isString(frontmatter["aliases"])) {
+							aliases = frontmatter["aliases"].split(", ");
 
-						for (const alias of aliases) {
-							if (alias === refAlias) {
-								aliasMentions.push(file.path);
+							for (const alias of aliases) {
+								if (alias === refAlias) {
+									aliasMentions.push(file.path);
+								}
 							}
 						}
 					}
@@ -671,6 +700,22 @@ class AutoMOCSettingTab extends PluginSettingTab {
 						this.plugin.saveSettings();
 					});
 			});
+
+		new Setting(containerEl)
+			.setName("Ignore notes in folders")
+			.setDesc(
+				"Specify a comma separated list of folders whose note's backlinks will not be added when AutoMOC is run \
+				(start from the root of your vault)"
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("path1, path2, path 3...")
+					.setValue(this.plugin.settings.ignoredFolders)
+					.onChange(async (value) => {
+						this.plugin.settings.ignoredFolders = value;
+						await this.plugin.saveSettings();
+					})
+			);
 
 		//Notification Settings
 		containerEl.createEl("h2", { text: "Notifications" });
