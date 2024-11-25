@@ -32,6 +32,7 @@ interface AutoMOCSettings {
 	//general
 	showRibbonButton: boolean;
 	linkToHeading: boolean;
+	linkWithAlias: boolean;
 	importAsList: string;
 	orderedListSeparator: string;
 	ignoredFolders: string;
@@ -46,6 +47,7 @@ const DEFAULT_SETTINGS: AutoMOCSettings = {
 	//general
 	showRibbonButton: true,
 	linkToHeading: false,
+	linkWithAlias: true,
 	importAsList: importListTypes.Disabled,
 	orderedListSeparator: orderedListDelimeters.Period,
 	ignoredFolders: "",
@@ -378,6 +380,7 @@ export default class AutoMOC extends Plugin {
 					let alias = "";
 
 					if (
+						this.settings.linkWithAlias &&
 						frontmatter &&
 						Array.isArray(frontmatter["aliases"]) &&
 						frontmatter["aliases"].length > 0
@@ -666,6 +669,20 @@ class AutoMOCSettingTab extends PluginSettingTab {
 						this.plugin.saveSettings();
 					});
 			});
+
+		new Setting(containerEl)
+			.setName("Create link with alias")
+			.setDesc(
+				"Creates the link with the first alias from the frontmatter"
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.linkWithAlias)
+					.onChange((linkWithAlias) => {
+						this.plugin.settings.linkWithAlias = linkWithAlias;
+						this.plugin.saveSettings();
+					})
+			);
 
 		new Setting(containerEl)
 			.setName("Import as list")

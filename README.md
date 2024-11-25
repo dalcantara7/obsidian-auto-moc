@@ -46,7 +46,9 @@ Command 3 can be run through the command pallette, or a keyboard shortcut (must 
 
 ### Frontmatter Support
 
-The plugin will check to see if a note has aliases in its frontmatter (now "**Properties**"). If it finds one, it will add a link to the note with its alias so that the link will be:
+The plugin can check to see if a note has aliases in its frontmatter (now "**Properties**"). **NEW**: this is an optional setting. By default, it will include the alias. If you want to ignore aliases, you will need to disable the associated setting.
+
+If the plugin finds an alias on a note and the associated setting is enabled, it will add a link to the note with its alias so that the link will be:
 
 ```
 [[NOTE|ALIAS]]
