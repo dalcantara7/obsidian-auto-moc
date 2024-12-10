@@ -385,7 +385,7 @@ export default class AutoMOC extends Plugin {
 						Array.isArray(frontmatter["aliases"]) &&
 						frontmatter["aliases"].length > 0
 					) {
-						alias = "|" + frontmatter.aliases[0];
+						alias = frontmatter.aliases[0];
 					}
 
 					let closestHeading = "";
@@ -418,7 +418,7 @@ export default class AutoMOC extends Plugin {
 										file,
 										activeFileView.file.path,
 										"#" + allHeadings[i],
-										(alias = alias)
+										alias
 									) +
 									"\n"
 							);
@@ -430,7 +430,8 @@ export default class AutoMOC extends Plugin {
 								this.app.fileManager.generateMarkdownLink(
 									file,
 									activeFileView.file.path,
-									(alias = alias)
+									undefined,
+									alias
 								) +
 								"\n"
 						);
