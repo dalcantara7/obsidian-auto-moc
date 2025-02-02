@@ -28,6 +28,11 @@ enum itemTypes {
 	Alias = "ALIAS",
 }
 
+interface LinkMention {
+  path: string;
+  headings: Array<string>;
+}
+  
 interface AutoMOCSettings {
 	//general
 	showRibbonButton: boolean;
@@ -211,9 +216,33 @@ export default class AutoMOC extends Plugin {
 		return presentLinks.sort();
 	}
 
-	getLinkedMentions(currFilePath: string) {
+  async getHeadings(path: string, activeFileView: MarkdownView, item?: string) {
+    let closestHeading = "";
+    let allHeadings: Array<string> = [];
+
+    if (this.settings.linkToHeading) {
+      const headingsLocations =
+        await this.getHeadingsLocationsInFile(path);
+      const linkTagLocations =
+        await this.getItemLocationsInFile(
+          activeFileView,
+          path,
+          item
+        );
+      for (let i = 0; i < linkTagLocations.length; i++) {
+        closestHeading = this.determineClosestHeading(
+          headingsLocations,
+          linkTagLocations[i]
+        );
+        allHeadings.push(closestHeading);
+      }
+    }
+    return allHeadings;
+  }
+  
+	async getLinkedMentions(currFilePath: string, activeFileView: MarkdownView, item?: string) {
 		const allFiles = this.app.metadataCache.resolvedLinks;
-		let linkedMentions: Array<string> = [];
+		let linkedMentions: Array<LinkMention> = [];
 
 		let ignoredFolders = this.settings.ignoredFolders
 			.trim()
@@ -221,21 +250,22 @@ export default class AutoMOC extends Plugin {
 			.map((str) => str.trim().replace(/^\/|\/$/g, ""))
 			.filter((n) => n);
 
-		Object.keys(allFiles).forEach((key) => {
+    for (const key of Object.keys(allFiles)) {
 			if (!ignoredFolders.some((path) => key.includes(path))) {
 				//check if file is in an ignored folder
 				if (currFilePath in allFiles[key]) {
-					linkedMentions.push(key);
+          const allHeadings: Array<string> = await this.getHeadings(key, activeFileView, item);
+					linkedMentions.push({path: key, headings: allHeadings});
 				}
 			}
-		});
+		}
 
-		return linkedMentions.sort();
+		return linkedMentions.sort((a, b) => a.path.localeCompare(b.path, undefined, {sensitivity: 'base'}));
 	}
 
-	getTaggedMentions(tag: string) {
+	async getTaggedMentions(currFilePath: string, activeFileView: MarkdownView, tag: string) {
 		const allFiles = this.app.metadataCache.resolvedLinks;
-		let taggedMentions: Array<string> = [];
+		let taggedMentions: Array<LinkMention> = [];
 		const toCompare = tag.replace("#", "");
 
 		let ignoredFolders = this.settings.ignoredFolders
@@ -244,7 +274,7 @@ export default class AutoMOC extends Plugin {
 			.map((str) => str.trim().replace(/^\/|\/$/g, ""))
 			.filter((n) => n);
 
-		Object.keys(allFiles).forEach((key) => {
+		for (const key of Object.keys(allFiles)) {
 			//check if file is in an ignored folder
 			if (!ignoredFolders.some((path) => key.includes(path))) {
 				const file = this.app.vault.getAbstractFileByPath(key);
@@ -256,7 +286,7 @@ export default class AutoMOC extends Plugin {
 					if (body_tags) {
 						for (const tag of body_tags) {
 							if (tag["tag"].replace("#", "") === toCompare) {
-								taggedMentions.push(file.path);
+								taggedMentions.push({path: file.path, headings: []});
 							}
 						}
 					}
@@ -268,7 +298,7 @@ export default class AutoMOC extends Plugin {
 
 							for (const f_tag of f_tags) {
 								if (f_tag === toCompare) {
-									taggedMentions.push(file.path);
+									taggedMentions.push({path: file.path, headings: []});
 								}
 							}
 						}
@@ -277,25 +307,29 @@ export default class AutoMOC extends Plugin {
 
 							for (const f_tag of f_tags) {
 								if (f_tag === toCompare) {
-									taggedMentions.push(file.path);
+									taggedMentions.push({path: file.path, headings: []});
 								}
 							}
 						}
 					}
 				}
 			}
-		});
+		}
 
 		const uniqueTaggedMentions = taggedMentions.filter(
 			(value, index, array) => array.indexOf(value) === index
 		);
-
+    
+    for (let mention of uniqueTaggedMentions) {
+      mention.headings = await this.getHeadings(mention.path, activeFileView, tag);
+    }
+    
 		return uniqueTaggedMentions;
 	}
 
-	getAliasMentions(refAlias: string) {
+	async getAliasMentions(currFilePath: string, activeFileView: MarkdownView, refAlias: string) {
 		const allFiles = this.app.metadataCache.resolvedLinks;
-		let aliasMentions: Array<string> = [];
+		let aliasMentions: Array<LinkMention> = [];
 
 		let ignoredFolders = this.settings.ignoredFolders
 			.trim()
@@ -303,7 +337,7 @@ export default class AutoMOC extends Plugin {
 			.map((str) => str.trim().replace(/^\/|\/$/g, ""))
 			.filter((n) => n);
 
-		Object.keys(allFiles).forEach((key) => {
+		for (const key of Object.keys(allFiles)) {
 			//check if file is in an ignored folder
 			if (!ignoredFolders.some((path) => key.includes(path))) {
 				const file = this.app.vault.getAbstractFileByPath(key);
@@ -318,7 +352,7 @@ export default class AutoMOC extends Plugin {
 
 							for (const alias of aliases) {
 								if (alias === refAlias) {
-									aliasMentions.push(file.path);
+									aliasMentions.push({path: file.path, headings: []});
 								}
 							}
 						}
@@ -327,26 +361,30 @@ export default class AutoMOC extends Plugin {
 
 							for (const alias of aliases) {
 								if (alias === refAlias) {
-									aliasMentions.push(file.path);
+									aliasMentions.push({path: file.path, headings: []});
 								}
 							}
 						}
 					}
 				}
 			}
-		});
+		}
 
 		const uniqueAliasMentions = aliasMentions.filter(
 			(value, index, array) => array.indexOf(value) === index
 		);
 
+    for (let mention of uniqueAliasMentions) {
+      mention.headings = await this.getHeadings(mention.path, activeFileView, tag);
+    }
+    
 		return uniqueAliasMentions;
 	}
 
 	async addMissingLinks(
 		activeFileView: MarkdownView,
 		presentLinks: Array<string>,
-		allLinkedMentions: Array<string>,
+		allLinkedMentions: Array<LinkMention>,
 		item?: string
 	) {
 		let addFlag = false;
@@ -369,7 +407,8 @@ export default class AutoMOC extends Plugin {
 		}
 
 		//checks for missing links and adds them
-		for (const path of allLinkedMentions) {
+		for (const mention of allLinkedMentions) {
+      const path = mention.path;
 			if (!presentLinks.includes(path)) {
 				const file = this.app.vault.getAbstractFileByPath(path);
 
@@ -388,26 +427,7 @@ export default class AutoMOC extends Plugin {
 						alias = frontmatter.aliases[0];
 					}
 
-					let closestHeading = "";
-					let allHeadings: Array<string> = [];
-
-					if (this.settings.linkToHeading) {
-						const headingsLocations =
-							await this.getHeadingsLocationsInFile(path);
-						const linkTagLocations =
-							await this.getItemLocationsInFile(
-								activeFileView,
-								path,
-								item
-							);
-						for (let i = 0; i < linkTagLocations.length; i++) {
-							closestHeading = this.determineClosestHeading(
-								headingsLocations,
-								linkTagLocations[i]
-							);
-							allHeadings.push(closestHeading);
-						}
-					}
+					let allHeadings: Array<string> = mention.headings;
 
 					if (allHeadings.length > 0) {
 						//if there is a closest heading, link to heading
@@ -540,7 +560,7 @@ export default class AutoMOC extends Plugin {
 		return headingsLocations[minIndex];
 	}
 
-	runAutoMOC(itemType: string, item?: string) {
+	async runAutoMOC(itemType: string, item?: string) {
 		if (!Object.values<string>(itemTypes).includes(itemType)) {
 			new Notice("Invalid itemType provided");
 			return;
@@ -554,13 +574,13 @@ export default class AutoMOC extends Plugin {
 
 			const presentLinks = this.getPresentLinks(view.file.path); // links already in the document
 
-			let linkTagMentions: Array<string>;
+			let linkTagMentions: Array<LinkMention>;
 			if (itemType == itemTypes.Link) {
-				linkTagMentions = this.getLinkedMentions(view.file.path); // all linked mentions even those not present
+				linkTagMentions = await this.getLinkedMentions(view.file.path, view, item); // all linked mentions even those not present
 			} else if (itemType == itemTypes.Tag) {
-				linkTagMentions = this.getTaggedMentions(item); // tagged mentions are looked up by basename rather than path
+				linkTagMentions = await this.getTaggedMentions(view.file.path, view, item); // tagged mentions are looked up by basename rather than path
 			} else if (itemType == itemTypes.Alias) {
-				linkTagMentions = this.getAliasMentions(item); // alias mentions are looked up by basename rather than path
+				linkTagMentions = await this.getAliasMentions(view.file.path, view, item); // alias mentions are looked up by basename rather than path
 			}
 
 			this.addMissingLinks(view, presentLinks, linkTagMentions, item);
