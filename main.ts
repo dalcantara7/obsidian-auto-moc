@@ -242,7 +242,7 @@ export default class AutoMOC extends Plugin {
           headingsLocations,
           linkTagLocations[i]
         );
-        allHeadings.push(closestHeading);
+        if (closestHeading) allHeadings.push(closestHeading);
       }
     }
     return allHeadings;
