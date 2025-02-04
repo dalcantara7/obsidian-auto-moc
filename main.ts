@@ -37,6 +37,7 @@ interface AutoMOCSettings {
 	//general
 	showRibbonButton: boolean;
 	linkToHeading: boolean;
+  linkToHeadingBefore: boolean;
 	linkWithAlias: boolean;
 	importAsList: string;
 	orderedListSeparator: string;
@@ -52,6 +53,7 @@ const DEFAULT_SETTINGS: AutoMOCSettings = {
 	//general
 	showRibbonButton: true,
 	linkToHeading: false,
+  linkToHeadingBefore: false,
 	linkWithAlias: true,
 	importAsList: importListTypes.Disabled,
 	orderedListSeparator: orderedListDelimeters.Period,
@@ -577,19 +579,27 @@ export default class AutoMOC extends Plugin {
 		let distances: Array<number> = [];
 
 		headingsLocations.forEach((item, index) => {
-			if (item != "-1") distances.push(Math.abs(index - itemLocation));
-			else distances.push(-1);
+      let distance = Infinity;
+			if (item != "-1") {
+        if (this.settings.linkToHeadingBefore) {
+          if (index <= itemLocation) {
+            distance = itemLocation - index;
+          }
+        }
+        else {
+          distance = Math.abs(index - itemLocation);
+        }
+      }
+			distances.push(distance);
 		});
 
 		let minIndex = -1;
 		let minValue = Infinity;
 		for (let i = 0; i < distances.length; i += 1) {
-			if (distances[i] != -1) {
-				if (distances[i] < minValue) {
-					minIndex = i;
-					minValue = distances[i];
-				}
-			}
+      if (distances[i] < minValue) {
+        minIndex = i;
+        minValue = distances[i];
+      }
 		}
 
 		if (minIndex === itemLocation) {
@@ -728,6 +738,20 @@ class AutoMOCSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.linkToHeading)
 					.onChange((linkToHeading) => {
 						this.plugin.settings.linkToHeading = linkToHeading;
+						this.plugin.saveSettings();
+					});
+			});
+
+    new Setting(containerEl)
+			.setName("Only search for previous headings")
+			.setDesc(
+				"This ensure that preview or embeded links will show the right file portion."
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.linkToHeadingBefore)
+					.onChange((linkToHeadingBefore) => {
+						this.plugin.settings.linkToHeadingBefore = linkToHeadingBefore;
 						this.plugin.saveSettings();
 					});
 			});
