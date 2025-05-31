@@ -37,7 +37,7 @@ interface AutoMOCSettings {
 	//general
 	showRibbonButton: boolean;
 	linkToHeading: boolean;
-	linkToHeadingBefore: boolean;
+	onlyLinkToPrecedingHeading: boolean;
 	linkWithAlias: boolean;
 	importAsList: string;
 	orderedListSeparator: string;
@@ -53,7 +53,7 @@ const DEFAULT_SETTINGS: AutoMOCSettings = {
 	//general
 	showRibbonButton: true,
 	linkToHeading: false,
-	linkToHeadingBefore: false,
+	onlyLinkToPrecedingHeading: false,
 	linkWithAlias: true,
 	importAsList: importListTypes.Disabled,
 	orderedListSeparator: orderedListDelimeters.Period,
@@ -251,7 +251,7 @@ export default class AutoMOC extends Plugin {
 	async getLinkedMentions(currFilePath: string, activeFileView: MarkdownView, item?: string) {
 		let linkedMentions: Array<LinkMention> = [];
 
-		let directSuccess = false;
+		let workAroundSuccess = false;
 		if (typeof this.app.metadataCache.getBacklinksForFile === 'function') {
 			// this is better than the manual approach as it will take in account all markdown link syntax
 			// and will do everything in one step
@@ -260,7 +260,7 @@ export default class AutoMOC extends Plugin {
 			const file = this.app.vault.getAbstractFileByPath(currFilePath);
 			const backLinks = this.app.metadataCache.getBacklinksForFile(file);
 			if (backLinks && backLinks.data) {
-				directSuccess = true;
+				workAroundSuccess = true;
 				for (const linkFile of backLinks.data) {
 					if (linkFile.length >= 2) {
 						const linkPath = linkFile[0];
@@ -277,7 +277,7 @@ export default class AutoMOC extends Plugin {
 			}
 		}
 
-		if (!directSuccess) {
+		if (!workAroundSuccess) {
 			const allFiles = this.app.metadataCache.resolvedLinks;
 
 			let ignoredFolders = this.settings.ignoredFolders
@@ -300,7 +300,7 @@ export default class AutoMOC extends Plugin {
 		return linkedMentions.sort((a, b) => a.path.localeCompare(b.path, undefined, {sensitivity: 'base'}));
 	}
 
-	async getTaggedMentions(currFilePath: string, activeFileView: MarkdownView, tag: string) {
+	async getTaggedMentions(activeFileView: MarkdownView, tag: string) {
 		const allFiles = this.app.metadataCache.resolvedLinks;
 		let taggedMentions: Array<LinkMention> = [];
 		const toCompare = tag.replace("#", "");
@@ -367,7 +367,7 @@ export default class AutoMOC extends Plugin {
 		return uniqueTaggedMentions;
 	}
 
-	async getAliasMentions(currFilePath: string, activeFileView: MarkdownView, refAlias: string) {
+	async getAliasMentions(activeFileView: MarkdownView, refAlias: string) {
 		const allFiles = this.app.metadataCache.resolvedLinks;
 		let aliasMentions: Array<LinkMention> = [];
 
@@ -418,7 +418,7 @@ export default class AutoMOC extends Plugin {
 		);
 
 		for (let mention of uniqueAliasMentions) {
-			mention.headings = await this.getHeadings(mention.path, activeFileView, tag);
+			mention.headings = await this.getHeadings(mention.path, activeFileView, refAlias);
 		}
 
 		return uniqueAliasMentions;
@@ -427,8 +427,7 @@ export default class AutoMOC extends Plugin {
 	async addMissingLinks(
 		activeFileView: MarkdownView,
 		presentLinks: Array<string>,
-		allLinkedMentions: Array<LinkMention>,
-		item?: string
+		allLinkedMentions: Array<LinkMention>
 	) {
 		let addFlag = false;
 
@@ -581,7 +580,7 @@ export default class AutoMOC extends Plugin {
 		headingsLocations.forEach((item, index) => {
 			let distance = Infinity;
 			if (item != "-1") {
-				if (this.settings.linkToHeadingBefore) {
+				if (this.settings.onlyLinkToPrecedingHeading) {
 					if (index <= itemLocation) {
 						distance = itemLocation - index;
 					}
@@ -629,12 +628,12 @@ export default class AutoMOC extends Plugin {
 			if (itemType == itemTypes.Link) {
 				linkTagMentions = await this.getLinkedMentions(view.file.path, view, item); // all linked mentions even those not present
 			} else if (itemType == itemTypes.Tag) {
-				linkTagMentions = await this.getTaggedMentions(view.file.path, view, item); // tagged mentions are looked up by basename rather than path
+				linkTagMentions = await this.getTaggedMentions(view, item); // tagged mentions are looked up by basename rather than path
 			} else if (itemType == itemTypes.Alias) {
-				linkTagMentions = await this.getAliasMentions(view.file.path, view, item); // alias mentions are looked up by basename rather than path
+				linkTagMentions = await this.getAliasMentions(view, item); // alias mentions are looked up by basename rather than path
 			}
 
-			this.addMissingLinks(view, presentLinks, linkTagMentions, item);
+			this.addMissingLinks(view, presentLinks, linkTagMentions);
 		} else {
 			new Notice(
 				"Failed to link mentions, file type is not a markdown file"
@@ -743,15 +742,15 @@ class AutoMOCSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Only search for previous headings")
+			.setName("Only link to preceding heading")
 			.setDesc(
-				"This ensure that preview or embeded links will show the right file portion."
+				"When 'Link to heading' is enabled, a heading will only be added to a link if the heading precedes the link/tag"
 			)
 			.addToggle((toggle) => {
 				toggle
-					.setValue(this.plugin.settings.linkToHeadingBefore)
-					.onChange((linkToHeadingBefore) => {
-						this.plugin.settings.linkToHeadingBefore = linkToHeadingBefore;
+					.setValue(this.plugin.settings.onlyLinkToPrecedingHeading)
+					.onChange((onlyLinkToPrecedingHeading) => {
+						this.plugin.settings.onlyLinkToPrecedingHeading = onlyLinkToPrecedingHeading;
 						this.plugin.saveSettings();
 					});
 			});
