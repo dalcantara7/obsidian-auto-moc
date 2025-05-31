@@ -251,11 +251,17 @@ export default class AutoMOC extends Plugin {
 	async getLinkedMentions(currFilePath: string, activeFileView: MarkdownView, item?: string) {
 		let linkedMentions: Array<LinkMention> = [];
 
+		let ignoredFolders = this.settings.ignoredFolders
+			.trim()
+			.split(",")
+			.map((str) => str.trim().replace(/^\/|\/$/g, ""))
+			.filter((n) => n);
+		
 		let workAroundSuccess = false;
 		if (typeof this.app.metadataCache.getBacklinksForFile === 'function') {
 			// this is better than the manual approach as it will take in account all markdown link syntax
 			// and will do everything in one step
-			// but this is not in the officla API, so let's keep the old approach too
+			// but this is not in the official API, so let's keep the old approach too
 
 			const file = this.app.vault.getAbstractFileByPath(currFilePath);
 			const backLinks = this.app.metadataCache.getBacklinksForFile(file);
@@ -264,14 +270,16 @@ export default class AutoMOC extends Plugin {
 				for (const linkFile of backLinks.data) {
 					if (linkFile.length >= 2) {
 						const linkPath = linkFile[0];
-						let linkLocations: Array<number> = [];
-						for (const iter of linkFile[1]) {
-							if (iter.position && iter.position.start) {
-								linkLocations.push(iter.position.start.line);
+						if (!ignoredFolders.some((path) => linkPath.includes(path))) {
+							let linkLocations: Array<number> = [];
+							for (const iter of linkFile[1]) {
+								if (iter.position && iter.position.start) {
+									linkLocations.push(iter.position.start.line);
+								}
 							}
+							const allHeadings: Array<string> = await this.getHeadings(linkPath, activeFileView, item, linkLocations);
+							linkedMentions.push({path: linkPath, headings: allHeadings});
 						}
-						const allHeadings: Array<string> = await this.getHeadings(linkPath, activeFileView, item, linkLocations);
-						linkedMentions.push({path: linkPath, headings: allHeadings});
 					}
 				}
 			}
@@ -279,12 +287,6 @@ export default class AutoMOC extends Plugin {
 
 		if (!workAroundSuccess) {
 			const allFiles = this.app.metadataCache.resolvedLinks;
-
-			let ignoredFolders = this.settings.ignoredFolders
-				.trim()
-				.split(",")
-				.map((str) => str.trim().replace(/^\/|\/$/g, ""))
-				.filter((n) => n);
 
 			for (const key of Object.keys(allFiles)) {
 				if (!ignoredFolders.some((path) => key.includes(path))) {
