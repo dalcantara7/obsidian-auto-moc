@@ -218,20 +218,24 @@ export default class AutoMOC extends Plugin {
 		return presentLinks.sort();
 	}
 
-	async getHeadings(path: string, activeFileView: MarkdownView, item?: string, linkLocations?: Array<number>) {
+	async getHeadings(
+		path: string,
+		activeFileView: MarkdownView,
+		item?: string,
+		linkLocations?: Array<number>
+	) {
 		let closestHeading = "";
 		let allHeadings: Array<string> = [];
 
 		if (this.settings.linkToHeading) {
-			const headingsLocations =
-				await this.getHeadingsLocationsInFile(path);
+			const headingsLocations = await this.getHeadingsLocationsInFile(
+				path
+			);
 			let linkTagLocations: Array<number> = [];
 			if (linkLocations) {
 				linkTagLocations = linkLocations;
-			}
-			else {
-				linkTagLocations =
-				await this.getItemLocationsInFile(
+			} else {
+				linkTagLocations = await this.getItemLocationsInFile(
 					activeFileView,
 					path,
 					item
@@ -248,7 +252,11 @@ export default class AutoMOC extends Plugin {
 		return allHeadings;
 	}
 
-	async getLinkedMentions(currFilePath: string, activeFileView: MarkdownView, item?: string) {
+	async getLinkedMentions(
+		currFilePath: string,
+		activeFileView: MarkdownView,
+		item?: string
+	) {
 		let linkedMentions: Array<LinkMention> = [];
 
 		let ignoredFolders = this.settings.ignoredFolders
@@ -256,12 +264,12 @@ export default class AutoMOC extends Plugin {
 			.split(",")
 			.map((str) => str.trim().replace(/^\/|\/$/g, ""))
 			.filter((n) => n);
-		
+
 		let workAroundSuccess = false;
-		if (typeof this.app.metadataCache.getBacklinksForFile === 'function') {
-			// this is better than the manual approach as it will take in account all markdown link syntax
-			// and will do everything in one step
-			// but this is not in the official API, so let's keep the old approach too
+		if (typeof this.app.metadataCache.getBacklinksForFile === "function") {
+			//check that function exists before running
+			// this method of detecting linked mentions is more efficient and takes into account all markdown link syntaxes
+			// however, it not in the official API
 
 			const file = this.app.vault.getAbstractFileByPath(currFilePath);
 			const backLinks = this.app.metadataCache.getBacklinksForFile(file);
@@ -270,21 +278,38 @@ export default class AutoMOC extends Plugin {
 				for (const linkFile of backLinks.data) {
 					if (linkFile.length >= 2) {
 						const linkPath = linkFile[0];
-						if (!ignoredFolders.some((path) => linkPath.includes(path))) {
+						if (
+							!ignoredFolders.some((path) =>
+								linkPath.includes(path)
+							)
+						) {
 							let linkLocations: Array<number> = [];
 							for (const iter of linkFile[1]) {
 								if (iter.position && iter.position.start) {
-									linkLocations.push(iter.position.start.line);
+									linkLocations.push(
+										iter.position.start.line
+									);
 								}
 							}
-							const allHeadings: Array<string> = await this.getHeadings(linkPath, activeFileView, item, linkLocations);
-							linkedMentions.push({path: linkPath, headings: allHeadings});
+							const allHeadings: Array<string> =
+								await this.getHeadings(
+									linkPath,
+									activeFileView,
+									item,
+									linkLocations
+								);
+							linkedMentions.push({
+								path: linkPath,
+								headings: allHeadings,
+							});
 						}
 					}
 				}
 			}
 		}
 
+		// since the above method is not officially supported, it may be deprecated or removed
+		// keep original approach just in case the workaround fails
 		if (!workAroundSuccess) {
 			const allFiles = this.app.metadataCache.resolvedLinks;
 
@@ -292,14 +317,20 @@ export default class AutoMOC extends Plugin {
 				if (!ignoredFolders.some((path) => key.includes(path))) {
 					//check if file is in an ignored folder
 					if (currFilePath in allFiles[key]) {
-						const allHeadings: Array<string> = await this.getHeadings(key, activeFileView, item);
-						linkedMentions.push({path: key, headings: allHeadings});
+						const allHeadings: Array<string> =
+							await this.getHeadings(key, activeFileView, item);
+						linkedMentions.push({
+							path: key,
+							headings: allHeadings,
+						});
 					}
 				}
 			}
 		}
-		// let's sort the array case insensitive
-		return linkedMentions.sort((a, b) => a.path.localeCompare(b.path, undefined, {sensitivity: 'base'}));
+		// case insensitive sort
+		return linkedMentions.sort((a, b) =>
+			a.path.localeCompare(b.path, undefined, { sensitivity: "base" })
+		);
 	}
 
 	async getTaggedMentions(activeFileView: MarkdownView, tag: string) {
@@ -325,7 +356,10 @@ export default class AutoMOC extends Plugin {
 					if (body_tags) {
 						for (const tag of body_tags) {
 							if (tag["tag"].replace("#", "") === toCompare) {
-								taggedMentions.push({path: file.path, headings: []});
+								taggedMentions.push({
+									path: file.path,
+									headings: [],
+								});
 							}
 						}
 					}
@@ -337,7 +371,10 @@ export default class AutoMOC extends Plugin {
 
 							for (const f_tag of f_tags) {
 								if (f_tag === toCompare) {
-									taggedMentions.push({path: file.path, headings: []});
+									taggedMentions.push({
+										path: file.path,
+										headings: [],
+									});
 								}
 							}
 						}
@@ -346,7 +383,10 @@ export default class AutoMOC extends Plugin {
 
 							for (const f_tag of f_tags) {
 								if (f_tag === toCompare) {
-									taggedMentions.push({path: file.path, headings: []});
+									taggedMentions.push({
+										path: file.path,
+										headings: [],
+									});
 								}
 							}
 						}
@@ -357,13 +397,19 @@ export default class AutoMOC extends Plugin {
 
 		const uniqueTaggedMentions = taggedMentions.filter(
 			(value, index, array) => {
-				const pos = array.findIndex((element) => element.path == value.path);
+				const pos = array.findIndex(
+					(element) => element.path == value.path
+				);
 				return pos === index;
 			}
 		);
 
 		for (let mention of uniqueTaggedMentions) {
-			mention.headings = await this.getHeadings(mention.path, activeFileView, tag);
+			mention.headings = await this.getHeadings(
+				mention.path,
+				activeFileView,
+				tag
+			);
 		}
 
 		return uniqueTaggedMentions;
@@ -394,7 +440,10 @@ export default class AutoMOC extends Plugin {
 
 							for (const alias of aliases) {
 								if (alias === refAlias) {
-									aliasMentions.push({path: file.path, headings: []});
+									aliasMentions.push({
+										path: file.path,
+										headings: [],
+									});
 								}
 							}
 						}
@@ -403,7 +452,10 @@ export default class AutoMOC extends Plugin {
 
 							for (const alias of aliases) {
 								if (alias === refAlias) {
-									aliasMentions.push({path: file.path, headings: []});
+									aliasMentions.push({
+										path: file.path,
+										headings: [],
+									});
 								}
 							}
 						}
@@ -414,13 +466,19 @@ export default class AutoMOC extends Plugin {
 
 		const uniqueAliasMentions = aliasMentions.filter(
 			(value, index, array) => {
-				const pos = array.findIndex((element) => element.path == value.path);
+				const pos = array.findIndex(
+					(element) => element.path == value.path
+				);
 				return pos === index;
 			}
 		);
 
 		for (let mention of uniqueAliasMentions) {
-			mention.headings = await this.getHeadings(mention.path, activeFileView, refAlias);
+			mention.headings = await this.getHeadings(
+				mention.path,
+				activeFileView,
+				refAlias
+			);
 		}
 
 		return uniqueAliasMentions;
@@ -551,12 +609,12 @@ export default class AutoMOC extends Plugin {
 			let lineContent: Array<string> = [];
 			const activeFileName = activeFileView.file.name.substring(
 				0,
-				activeFileView.file.name.length - 3
+				activeFileView.file.name.length - 3 // -3 in order to remove ".md" from filepath
 			);
 
 			let toSearch = "";
 			if (!item) {
-				toSearch = "[[" + activeFileName + "]]"; // -3 in order to remove ".md" from filepath
+				toSearch = "[[" + activeFileName + "]]";
 			} else toSearch = item;
 
 			lines.forEach((line) => {
@@ -586,8 +644,7 @@ export default class AutoMOC extends Plugin {
 					if (index <= itemLocation) {
 						distance = itemLocation - index;
 					}
-				}
-				else {
+				} else {
 					distance = Math.abs(index - itemLocation);
 				}
 			}
@@ -628,7 +685,11 @@ export default class AutoMOC extends Plugin {
 
 			let linkTagMentions: Array<LinkMention>;
 			if (itemType == itemTypes.Link) {
-				linkTagMentions = await this.getLinkedMentions(view.file.path, view, item); // all linked mentions even those not present
+				linkTagMentions = await this.getLinkedMentions(
+					view.file.path,
+					view,
+					item
+				); // all linked mentions even those not present
 			} else if (itemType == itemTypes.Tag) {
 				linkTagMentions = await this.getTaggedMentions(view, item); // tagged mentions are looked up by basename rather than path
 			} else if (itemType == itemTypes.Alias) {
@@ -752,7 +813,8 @@ class AutoMOCSettingTab extends PluginSettingTab {
 				toggle
 					.setValue(this.plugin.settings.onlyLinkToPrecedingHeading)
 					.onChange((onlyLinkToPrecedingHeading) => {
-						this.plugin.settings.onlyLinkToPrecedingHeading = onlyLinkToPrecedingHeading;
+						this.plugin.settings.onlyLinkToPrecedingHeading =
+							onlyLinkToPrecedingHeading;
 						this.plugin.saveSettings();
 					});
 			});
