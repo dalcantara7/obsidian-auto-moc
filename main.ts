@@ -8,6 +8,7 @@ import {
 	Setting,
 	TFile,
 	FuzzySuggestModal,
+	SettingDefinitionItem,
 } from "obsidian";
 
 enum importListTypes {
@@ -97,7 +98,8 @@ export class TagSuggestModal extends FuzzySuggestModal<string> {
 		Object.keys(allFiles).forEach((key) => {
 			const file = this.app.vault.getAbstractFileByPath(key);
 			if (file instanceof TFile) {
-				const body_tags = app.metadataCache.getFileCache(file).tags;
+				const body_tags =
+					this.app.metadataCache.getFileCache(file).tags;
 				const frontmatter =
 					this.app.metadataCache.getFileCache(file).frontmatter;
 
@@ -222,15 +224,14 @@ export default class AutoMOC extends Plugin {
 		path: string,
 		activeFileView: MarkdownView,
 		item?: string,
-		linkLocations?: Array<number>
+		linkLocations?: Array<number>,
 	) {
 		let closestHeading = "";
 		let allHeadings: Array<string> = [];
 
 		if (this.settings.linkToHeading) {
-			const headingsLocations = await this.getHeadingsLocationsInFile(
-				path
-			);
+			const headingsLocations =
+				await this.getHeadingsLocationsInFile(path);
 			let linkTagLocations: Array<number> = [];
 			if (linkLocations) {
 				linkTagLocations = linkLocations;
@@ -238,13 +239,13 @@ export default class AutoMOC extends Plugin {
 				linkTagLocations = await this.getItemLocationsInFile(
 					activeFileView,
 					path,
-					item
+					item,
 				);
 			}
 			for (let i = 0; i < linkTagLocations.length; i++) {
 				closestHeading = this.determineClosestHeading(
 					headingsLocations,
-					linkTagLocations[i]
+					linkTagLocations[i],
 				);
 				if (closestHeading) allHeadings.push(closestHeading);
 			}
@@ -255,7 +256,7 @@ export default class AutoMOC extends Plugin {
 	async getLinkedMentions(
 		currFilePath: string,
 		activeFileView: MarkdownView,
-		item?: string
+		item?: string,
 	) {
 		let linkedMentions: Array<LinkMention> = [];
 
@@ -266,13 +267,15 @@ export default class AutoMOC extends Plugin {
 			.filter((n) => n);
 
 		let workAroundSuccess = false;
-		if (typeof this.app.metadataCache.getBacklinksForFile === "function") {
+		// not in the official typings, so reach for it through an untyped view
+		const metadataCache = this.app.metadataCache as any;
+		if (typeof metadataCache.getBacklinksForFile === "function") {
 			//check that function exists before running
 			// this method of detecting linked mentions is more efficient and takes into account all markdown link syntaxes
 			// however, it not in the official API
 
 			const file = this.app.vault.getAbstractFileByPath(currFilePath);
-			const backLinks = this.app.metadataCache.getBacklinksForFile(file);
+			const backLinks = metadataCache.getBacklinksForFile(file);
 			if (backLinks && backLinks.data) {
 				workAroundSuccess = true;
 				for (const linkFile of backLinks.data) {
@@ -280,14 +283,14 @@ export default class AutoMOC extends Plugin {
 						const linkPath = linkFile[0];
 						if (
 							!ignoredFolders.some((path) =>
-								linkPath.includes(path)
+								linkPath.includes(path),
 							)
 						) {
 							let linkLocations: Array<number> = [];
 							for (const iter of linkFile[1]) {
 								if (iter.position && iter.position.start) {
 									linkLocations.push(
-										iter.position.start.line
+										iter.position.start.line,
 									);
 								}
 							}
@@ -296,7 +299,7 @@ export default class AutoMOC extends Plugin {
 									linkPath,
 									activeFileView,
 									item,
-									linkLocations
+									linkLocations,
 								);
 							linkedMentions.push({
 								path: linkPath,
@@ -329,7 +332,7 @@ export default class AutoMOC extends Plugin {
 		}
 		// case insensitive sort
 		return linkedMentions.sort((a, b) =>
-			a.path.localeCompare(b.path, undefined, { sensitivity: "base" })
+			a.path.localeCompare(b.path, undefined, { sensitivity: "base" }),
 		);
 	}
 
@@ -349,7 +352,8 @@ export default class AutoMOC extends Plugin {
 			if (!ignoredFolders.some((path) => key.includes(path))) {
 				const file = this.app.vault.getAbstractFileByPath(key);
 				if (file instanceof TFile) {
-					const body_tags = app.metadataCache.getFileCache(file).tags;
+					const body_tags =
+						this.app.metadataCache.getFileCache(file).tags;
 					const frontmatter =
 						this.app.metadataCache.getFileCache(file).frontmatter;
 
@@ -398,17 +402,17 @@ export default class AutoMOC extends Plugin {
 		const uniqueTaggedMentions = taggedMentions.filter(
 			(value, index, array) => {
 				const pos = array.findIndex(
-					(element) => element.path == value.path
+					(element) => element.path == value.path,
 				);
 				return pos === index;
-			}
+			},
 		);
 
 		for (let mention of uniqueTaggedMentions) {
 			mention.headings = await this.getHeadings(
 				mention.path,
 				activeFileView,
-				tag
+				tag,
 			);
 		}
 
@@ -467,17 +471,17 @@ export default class AutoMOC extends Plugin {
 		const uniqueAliasMentions = aliasMentions.filter(
 			(value, index, array) => {
 				const pos = array.findIndex(
-					(element) => element.path == value.path
+					(element) => element.path == value.path,
 				);
 				return pos === index;
-			}
+			},
 		);
 
 		for (let mention of uniqueAliasMentions) {
 			mention.headings = await this.getHeadings(
 				mention.path,
 				activeFileView,
-				refAlias
+				refAlias,
 			);
 		}
 
@@ -487,7 +491,7 @@ export default class AutoMOC extends Plugin {
 	async addMissingLinks(
 		activeFileView: MarkdownView,
 		presentLinks: Array<string>,
-		allLinkedMentions: Array<LinkMention>
+		allLinkedMentions: Array<LinkMention>,
 	) {
 		let addFlag = false;
 
@@ -540,9 +544,9 @@ export default class AutoMOC extends Plugin {
 										file,
 										activeFileView.file.path,
 										"#" + allHeadings[i],
-										alias
+										alias,
 									) +
-									"\n"
+									"\n",
 							);
 						}
 					} else {
@@ -553,9 +557,9 @@ export default class AutoMOC extends Plugin {
 									file,
 									activeFileView.file.path,
 									undefined,
-									alias
+									alias,
 								) +
-								"\n"
+								"\n",
 						);
 					}
 					if (
@@ -599,7 +603,7 @@ export default class AutoMOC extends Plugin {
 	async getItemLocationsInFile(
 		activeFileView: MarkdownView,
 		filePath: string,
-		item?: string
+		item?: string,
 	) {
 		const file = this.app.vault.getAbstractFileByPath(filePath);
 
@@ -609,7 +613,7 @@ export default class AutoMOC extends Plugin {
 			let lineContent: Array<string> = [];
 			const activeFileName = activeFileView.file.name.substring(
 				0,
-				activeFileView.file.name.length - 3 // -3 in order to remove ".md" from filepath
+				activeFileView.file.name.length - 3, // -3 in order to remove ".md" from filepath
 			);
 
 			let toSearch = "";
@@ -633,7 +637,7 @@ export default class AutoMOC extends Plugin {
 
 	determineClosestHeading(
 		headingsLocations: Array<string>,
-		itemLocation: number
+		itemLocation: number,
 	) {
 		let distances: Array<number> = [];
 
@@ -688,7 +692,7 @@ export default class AutoMOC extends Plugin {
 				linkTagMentions = await this.getLinkedMentions(
 					view.file.path,
 					view,
-					item
+					item,
 				); // all linked mentions even those not present
 			} else if (itemType == itemTypes.Tag) {
 				linkTagMentions = await this.getTaggedMentions(view, item); // tagged mentions are looked up by basename rather than path
@@ -699,7 +703,7 @@ export default class AutoMOC extends Plugin {
 			this.addMissingLinks(view, presentLinks, linkTagMentions);
 		} else {
 			new Notice(
-				"Failed to link mentions, file type is not a markdown file"
+				"Failed to link mentions, file type is not a markdown file",
 			);
 		}
 	}
@@ -713,7 +717,7 @@ export default class AutoMOC extends Plugin {
 				"AutoMOC",
 				(evt: MouseEvent) => {
 					this.runAutoMOC(itemTypes.Link);
-				}
+				},
 			);
 		}
 
@@ -750,7 +754,7 @@ export default class AutoMOC extends Plugin {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			await this.loadData()
+			await this.loadData(),
 		);
 	}
 
@@ -767,6 +771,108 @@ class AutoMOCSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
+	// Used by Obsidian 1.13.0 and up, which renders the settings from these
+	// definitions and indexes them for the global settings search. display()
+	// below is the fallback for older versions - keep the two in sync whenever
+	// a setting is added or changed
+	getSettingDefinitions(): SettingDefinitionItem<keyof AutoMOCSettings>[] {
+		return [
+			{
+				type: "group",
+				heading: "Functionality",
+				items: [
+					{
+						name: "Show ribbon button",
+						desc: "Enable or disable the ribbon button for this plugin. You can still run the plugin with a hotkey (requires restart)",
+						control: { type: "toggle", key: "showRibbonButton" },
+					},
+					{
+						name: "Link to heading",
+						desc: "Creates the link to the heading closest to the link/tag. This is performed in a greedy manner",
+						control: { type: "toggle", key: "linkToHeading" },
+					},
+					{
+						name: "Only link to preceding heading",
+						desc: "When 'Link to heading' is enabled, a heading will only be added to a link if the heading precedes the link/tag",
+						control: {
+							type: "toggle",
+							key: "onlyLinkToPrecedingHeading",
+						},
+					},
+					{
+						name: "Create link with alias",
+						desc: "Creates the link with the first alias from the frontmatter",
+						control: { type: "toggle", key: "linkWithAlias" },
+					},
+					{
+						name: "Import as list",
+						desc: "Choose whether to import the links directly or as a ordered/unordered list",
+						control: {
+							type: "dropdown",
+							key: "importAsList",
+							options: {
+								[importListTypes.Disabled]: "Disabled",
+								[importListTypes.OrderedList]: "Ordered List",
+								[importListTypes.UnorderedList]:
+									"Unordered List",
+								[importListTypes.CheckBox]: "Checkbox",
+							},
+						},
+					},
+					{
+						name: "Ordered list separator character",
+						desc: 'If "Import as List" is set to "Ordered List" - Set what character separates the number from the list item',
+						control: {
+							type: "dropdown",
+							key: "orderedListSeparator",
+							options: {
+								[orderedListDelimeters.Period]: "Period",
+								[orderedListDelimeters.Parenthesis]:
+									"Parenthesis",
+							},
+						},
+					},
+					{
+						name: "Ignore notes in folders",
+						desc: "Specify a comma separated list of folders whose note's backlinks will not be added when AutoMOC is run \
+						(start from the root of your vault)",
+						control: {
+							type: "text",
+							key: "ignoredFolders",
+							placeholder: "path1, path2, path 3...",
+						},
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Notifications",
+				items: [
+					{
+						name: "Linking mentions",
+						desc: "Enable or disable notifications for when AutoMoc begins to run",
+						control: {
+							type: "toggle",
+							key: "linkingMentionsNotice",
+						},
+					},
+					{
+						name: "New links added",
+						desc: "Enable or disable notifications for when new links are added to a note",
+						control: { type: "toggle", key: "newLinksAddedNotice" },
+					},
+					{
+						name: "No new links found",
+						desc: "Enable or disable notifications for when no new links are added to a note",
+						control: { type: "toggle", key: "noNewLinksNotice" },
+					},
+				],
+			},
+		];
+	}
+
+	// Fallback for Obsidian versions older than 1.13.0, which have no
+	// getSettingDefinitions(). Keep in sync with the definitions above
 	display(): void {
 		const { containerEl } = this;
 
@@ -778,7 +884,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Show ribbon button")
 			.setDesc(
-				"Enable or disable the ribbon button for this plugin. You can still run the plugin with a hotkey (requires restart)"
+				"Enable or disable the ribbon button for this plugin. You can still run the plugin with a hotkey (requires restart)",
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -793,7 +899,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Link to heading")
 			.setDesc(
-				"Creates the link to the heading closest to the link/tag. This is performed in a greedy manner"
+				"Creates the link to the heading closest to the link/tag. This is performed in a greedy manner",
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -807,7 +913,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Only link to preceding heading")
 			.setDesc(
-				"When 'Link to heading' is enabled, a heading will only be added to a link if the heading precedes the link/tag"
+				"When 'Link to heading' is enabled, a heading will only be added to a link if the heading precedes the link/tag",
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -822,7 +928,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Create link with alias")
 			.setDesc(
-				"Creates the link with the first alias from the frontmatter"
+				"Creates the link with the first alias from the frontmatter",
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -830,13 +936,13 @@ class AutoMOCSettingTab extends PluginSettingTab {
 					.onChange((linkWithAlias) => {
 						this.plugin.settings.linkWithAlias = linkWithAlias;
 						this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		new Setting(containerEl)
 			.setName("Import as list")
 			.setDesc(
-				"Choose whether to import the links directly or as a ordered/unordered list"
+				"Choose whether to import the links directly or as a ordered/unordered list",
 			)
 			.addDropdown((dropdown) => {
 				dropdown
@@ -854,7 +960,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Ordered list separator character")
 			.setDesc(
-				'If "Import as List" is set to "Ordered List" - Set what character separates the number from the list item'
+				'If "Import as List" is set to "Ordered List" - Set what character separates the number from the list item',
 			)
 			.addDropdown((dropdown) => {
 				dropdown
@@ -871,7 +977,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 			.setName("Ignore notes in folders")
 			.setDesc(
 				"Specify a comma separated list of folders whose note's backlinks will not be added when AutoMOC is run \
-				(start from the root of your vault)"
+				(start from the root of your vault)",
 			)
 			.addText((text) =>
 				text
@@ -880,7 +986,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.ignoredFolders = value;
 						await this.plugin.saveSettings();
-					})
+					}),
 			);
 
 		//Notification Settings
@@ -889,7 +995,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Linking mentions")
 			.setDesc(
-				"Enable or disable notifications for when AutoMoc begins to run"
+				"Enable or disable notifications for when AutoMoc begins to run",
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -903,7 +1009,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("New links added")
 			.setDesc(
-				"Enable or disable notifications for when new links are added to a note"
+				"Enable or disable notifications for when new links are added to a note",
 			)
 			.addToggle((toggle) => {
 				toggle
@@ -917,7 +1023,7 @@ class AutoMOCSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("No new links found")
 			.setDesc(
-				"Enable or disable notifications for when no new links are added to a note"
+				"Enable or disable notifications for when no new links are added to a note",
 			)
 			.addToggle((toggle) => {
 				toggle
